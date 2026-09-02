@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { T } from "./theme.js";
 import { CHARS } from "./data/script.js";
-import { STORIES, getStory } from "./data/stories.js";
+import { storiesFor, getStory, isAdult } from "./data/stories.js";
 import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
 import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS } from "./lib/audio.js";
@@ -16,14 +16,14 @@ const BACKUP_VERSION = 1;
 
 function Loading() {
   return (
-    <div className="flex-1 min-h-screen flex items-center justify-center text-sm" style={{ color: T.dim }}>
+    <div className="flex-1 flex items-center justify-center text-sm" style={{ color: T.dim }}>
       טוען הקלטות…
     </div>
   );
 }
 
 export default function App() {
-  const [script, setScript] = useState(STORIES[0]);
+  const [script, setScript] = useState(getStory("s1"));
   const [recordings, setRecordings] = useState({});
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [endings, setEndings] = useState([]);
@@ -167,6 +167,17 @@ export default function App() {
   }, [storageOk]);
 
   // חלוקה מחדש בין שחקנים. זרע חדש = חלוקה חדשה, ההקלטות עצמן נשארות.
+  const setAdultUnlocked = useCallback((on) => {
+    setSettings((prev) => {
+      const next = { ...prev, adultUnlocked: !!on };
+      // נעילה חזרה בזמן שסיפור 18+ פעיל מחזירה לסיפור הראשון
+      if (!on && isAdult(prev.storyId)) next.storyId = "s1";
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+    if (!on && isAdult(script.id)) { setScript(getStory("s1")); setStudioIdx(0); }
+  }, [storageOk, script]);
+
   const setParty = useCallback((names, mode) => {
     setSettings((prev) => {
       const next = { ...prev, players: names, splitMode: mode, splitSeed: newSeed() };
@@ -328,8 +339,8 @@ export default function App() {
   }
 
   return (
-    <div dir="rtl" className="w-full safe-top safe-bottom" style={{ background: T.bg, color: T.ink, minHeight: "100vh" }}>
-      <div className="mx-auto w-full max-w-md min-h-screen flex flex-col">
+    <div dir="rtl" className="w-full safe-top safe-bottom vg-screen" style={{ background: T.bg, color: T.ink }}>
+      <div className="mx-auto w-full max-w-md h-full flex flex-col overflow-hidden">
         {!loaded ? (
           <Loading />
         ) : screen === "studio" ? (
@@ -367,6 +378,8 @@ export default function App() {
             onSetSetting={setSetting}
             onToggleBlind={toggleBlind}
             onReshuffle={reshuffleStudio}
+            adultUnlocked={!!settings.adultUnlocked}
+            onLockAdult={() => setAdultUnlocked(false)}
             canInstall={canInstall}
             installed={installed}
             ios={isIOS()}
@@ -393,9 +406,11 @@ export default function App() {
             storageWarn={storageWarn}
             canInstall={canInstall && !installed}
             blind={!!settings.studioBlind}
-            stories={STORIES}
+            stories={storiesFor(!!settings.adultUnlocked)}
             storyId={script.id || "s1"}
             onSelectStory={selectStory}
+            adultUnlocked={!!settings.adultUnlocked}
+            onUnlockAdult={() => setAdultUnlocked(true)}
             players={players}
             splitMode={settings.splitMode}
             playerStats={party ? playerProgress(lines, assign, recordings, players.length) : null}

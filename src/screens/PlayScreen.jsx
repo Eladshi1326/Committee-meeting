@@ -7,7 +7,7 @@ import { Avatar, SceneLabel } from "../components/ui.jsx";
 
 function EndingCard({ ending, sanity, steps, foundCount, totalEndings, isNew, onReplay, onExit }) {
   return (
-    <div className="flex-1 flex flex-col justify-center px-4 py-6 vg-rise">
+    <div className="flex-1 vg-scroll flex flex-col justify-center px-4 py-6 vg-rise">
       {isNew && (
         <div className="flex items-center gap-2 text-xs mb-3" style={{ color: T.lamp }}>
           <Flag size={14} /> סוף חדש
@@ -202,7 +202,7 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
 
   if (!node) {
     return (
-      <div className="flex flex-col flex-1 min-h-screen items-center justify-center gap-4 px-6 text-center">
+      <div className="flex flex-col flex-1 items-center justify-center gap-4 px-6 text-center">
         <p style={{ color: T.muted }}>הצומת ״{String(nodeId)}״ לא קיים בתסריט. בדוק את שדות ה-next.</p>
         <button onClick={onExit} className="rounded-2xl px-5 py-3 font-bold" style={{ background: T.lamp, color: T.onLamp }}>חזרה</button>
       </div>
@@ -213,8 +213,8 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
   const foundCount = endings.includes(nodeId) ? endings.length : endings.length + 1;
 
   return (
-    <div className="flex flex-col flex-1 min-h-screen">
-      <div className="flex items-center gap-3 px-3 pt-3 pb-1">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <div className="shrink-0 flex items-center gap-3 px-3 pt-3 pb-1">
         <button onClick={onExit} className="p-2 rounded-xl" style={{ color: T.muted }} aria-label="יציאה">
           <X size={22} />
         </button>
@@ -229,7 +229,7 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
         </div>
       </div>
 
-      <div className="px-4 mt-3"><SceneLabel text={node.scene} /></div>
+      <div className="shrink-0 px-4 mt-3"><SceneLabel text={node.scene} /></div>
 
       {phase === "ending" ? (
         <EndingCard
@@ -246,7 +246,7 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
         <>
           <div
             onClick={utter ? skip : undefined}
-            className="flex-1 flex flex-col justify-center px-4 py-6 select-none"
+            className="flex-1 vg-scroll flex flex-col justify-center px-4 py-6 select-none"
             style={{ opacity: phase === "choices" ? 0.55 : 1, transition: "opacity .3s" }}
           >
             {shown && speaker && (
@@ -280,7 +280,7 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
             )}
           </div>
 
-          <div className="px-4 pb-6">
+          <div className="shrink-0 px-4 pb-5 max-h-[52%] vg-scroll">
             {phase === "choices" && (
               <div className="flex flex-col gap-2 vg-rise">
                 <div className="text-xs mb-1" style={{ color: T.dim }}>מה אתה עונה?</div>

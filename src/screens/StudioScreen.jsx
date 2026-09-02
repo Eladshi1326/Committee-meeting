@@ -183,7 +183,7 @@ export default function StudioScreen({
 
   if (!line) {
     return (
-      <div className="flex flex-col flex-1 min-h-screen items-center justify-center gap-4 px-6 text-center">
+      <div className="flex flex-col flex-1 items-center justify-center gap-4 px-6 text-center">
         <p style={{ color: T.muted }}>אין שורות בתסריט. תוסיף שורות בעריכת התסריט.</p>
         <button onClick={onHome} className="rounded-2xl px-5 py-3 font-bold" style={{ background: T.lamp, color: T.onLamp }}>חזרה</button>
       </div>
@@ -199,7 +199,7 @@ export default function StudioScreen({
     : "עוד לא הוקלט. לחץ על המיקרופון ודבר.";
 
   return (
-    <div className="flex flex-col flex-1 min-h-screen">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <button onClick={onHome} disabled={busy} className="p-2 rounded-xl" style={{ color: busy ? T.dim : T.muted }} aria-label="חזרה">
           <Home size={22} />
@@ -212,7 +212,7 @@ export default function StudioScreen({
         </div>
       </div>
 
-      <div className="px-4 mt-2">
+      <div className="px-4 mt-2 flex-1 vg-scroll">
         {!blind && <div className="mb-3"><SceneLabel text={line.scene} /></div>}
 
         <div key={line.id} className="vg-rise rounded-3xl p-5" style={{ background: T.surface, border: "1px solid " + T.line }}>
@@ -283,7 +283,7 @@ export default function StudioScreen({
         </div>
       </div>
 
-      <div className="mt-auto px-4 pb-6 pt-6 flex flex-col items-center gap-4">
+      <div className="shrink-0 px-4 pb-4 pt-3 flex flex-col items-center gap-3">
         {micErr && (
           <div
             className="w-full rounded-2xl p-3 text-sm flex gap-2 items-start"

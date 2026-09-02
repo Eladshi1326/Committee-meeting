@@ -29,14 +29,14 @@ function DangerButton({ label, armedLabel, onConfirm }) {
 }
 
 export default function MoreScreen({
-  settings, onSetSetting, onToggleBlind, onReshuffle, canInstall, installed, ios, onInstall,
+  settings, onSetSetting, onToggleBlind, onReshuffle, adultUnlocked, onLockAdult, canInstall, installed, ios, onInstall,
   onExport, onImport, exporting, importMsg,
   onClearRecordings, onResetEndings, onResetScript, storageOk, onBack, recordedCount,
 }) {
   const fileRef = useRef(null);
 
   return (
-    <div className="flex flex-col flex-1 min-h-screen px-4 pt-3 pb-8 gap-4">
+    <div className="flex flex-col flex-1 vg-scroll px-4 pt-3 pb-8 gap-4">
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="p-2 rounded-xl" style={{ color: T.muted }} aria-label="חזרה">
           <Home size={22} />
@@ -89,6 +89,19 @@ export default function MoreScreen({
           </button>
         )}
       </Section>
+
+      {adultUnlocked && (
+        <Section title="מדף 18+">
+          <div className="py-2 text-xs leading-relaxed" style={{ color: T.dim }}>
+            שלושת הסיפורים של 18+ פתוחים ומופיעים ברשימת הסיפורים. הם מיועדים למבוגרים בלבד.
+          </div>
+          <DangerButton
+            label="לנעול בחזרה את המדף של 18+"
+            armedLabel="בטוח? לחץ שוב לנעילה"
+            onConfirm={onLockAdult}
+          />
+        </Section>
+      )}
 
       <Section title="להתקין כאפליקציה">
         {installed ? (

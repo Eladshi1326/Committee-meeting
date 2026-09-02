@@ -115,3 +115,20 @@ button:focus-visible, textarea:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .vg-pop, .vg-slide, .vg-float, .vg-glow, .vg-stagger > *, .vg-steps > span { animation: none; }
 }
+
+/* ---- גובה מסך אמיתי במובייל ----
+   100vh במובייל הוא הגובה כשסרגל הכתובת מוסתר, אז הדף תמיד יוצא גבוה
+   מהשטח הנראה וכפתורים שמעוגנים לתחתית נופלים מתחת לקפל. 100dvh הוא
+   הגובה שבאמת רואים ברגע נתון. */
+.vg-screen {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.vg-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.vg-noscroll { overflow: hidden; min-height: 0; }

@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   splitMode: "line",     // "line" = שורות אקראיות לכל אחד, "char" = דמות שלמה לכל אחד
   splitSeed: 0,          // זרע החלוקה בין השחקנים
   setupDone: false,      // עברו את מסך הפתיחה (כמה אתם + איזה סיפור)
+  adultUnlocked: false,  // המדף של 18+ נפתח
 };
 
 let dbPromise = null;

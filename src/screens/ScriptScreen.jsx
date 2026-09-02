@@ -30,7 +30,7 @@ export default function ScriptScreen({ script, onApply, onReset, onBack }) {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-screen px-4 pt-3 pb-6 gap-3">
+    <div className="flex flex-col flex-1 min-h-0 px-4 pt-3 pb-6 gap-3">
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="p-2 rounded-xl" style={{ color: T.muted }} aria-label="חזרה">
           <Home size={22} />

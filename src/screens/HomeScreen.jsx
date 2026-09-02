@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Mic, Play, Check, FileText, Settings, Download, ChevronDown, ChevronUp,
-  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil,
+  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle,
 } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, countLines, endingIds, flattenLines } from "../lib/script.js";
@@ -9,12 +9,13 @@ import { Avatar, ProgressBar, SceneLabel, PrimaryButton, Toggle } from "../compo
 
 const MAX_PLAYERS = 12;
 
-// איזה סיפור מתאים לכמה אנשים
-function recommendFor(n) {
-  if (n <= 2) return "s1";
-  if (n <= 5) return "s2";
-  return "s3";
+// סיפור מומלץ = כזה שטווח ה-fit שלו מכיל את מספר השחקנים
+function fits(s, n) {
+  const f = s.fit || [1, 99];
+  return n >= f[0] && n <= f[1];
 }
+
+const TAP_WINDOW = 700;
 
 function StepDots({ step }) {
   const idx = { players: 0, story: 1, main: 2 }[step] || 0;
@@ -32,11 +33,25 @@ function StepDots({ step }) {
 }
 
 /* ---------------- שלב 1: כמה אתם ---------------- */
-function PlayersStep({ players, splitMode, onDone }) {
+function PlayersStep({ players, splitMode, onDone, adultUnlocked, onUnlockAdult }) {
   const [names, setNames] = useState(players.length ? players.slice() : [""]);
   const [mode, setMode] = useState(splitMode || "line");
   const [bump, setBump] = useState(0);
+  const [asking, setAsking] = useState(false);
+  const taps = useRef([]);
   const count = names.length;
+
+  // שלוש הקשות מהירות על הכותרת פותחות את שאלת ה-18+
+  function tapTitle() {
+    if (adultUnlocked) return;
+    const now = Date.now();
+    taps.current = taps.current.filter((t) => now - t < TAP_WINDOW);
+    taps.current.push(now);
+    if (taps.current.length >= 3) {
+      taps.current = [];
+      setAsking(true);
+    }
+  }
 
   function setCount(n) {
     const c = Math.max(1, Math.min(MAX_PLAYERS, n));
@@ -55,16 +70,56 @@ function PlayersStep({ players, splitMode, onDone }) {
   }
 
   return (
-    <div className="vg-slide flex flex-col gap-6 flex-1">
-      <header className="text-center pt-2">
-        <div className="text-5xl vg-float">🎙️</div>
-        <h1 className="text-3xl font-bold mt-3">כמה אתם?</h1>
-        <p className="mt-2 text-sm leading-relaxed" style={{ color: T.muted }}>
+    <div className="vg-slide flex flex-col gap-3 flex-1 min-h-0">
+      {asking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: "rgba(10,8,6,.86)" }}
+          onClick={() => setAsking(false)}
+        >
+          <div
+            className="vg-pop w-full max-w-sm rounded-3xl p-5 text-center"
+            style={{ background: T.surface, border: "1px solid " + T.rec }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <AlertTriangle size={34} style={{ color: T.rec }} className="mx-auto" />
+            <div className="text-xl font-bold mt-3">לפתוח את המדף של 18+?</div>
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: T.muted }}>
+              שלושה סיפורים נוספים למבוגרים בלבד: קללות, בדיחות זין, מצבים מביכים ודברים
+              שלא תרצה להקריא בקול ליד ההורים שלך.
+            </p>
+            <p className="text-xs mt-2" style={{ color: T.dim }}>
+              לא לילדים. אפשר לנעול בחזרה בהגדרות.
+            </p>
+            <div className="flex flex-col gap-2 mt-5">
+              <button
+                onClick={() => { setAsking(false); onUnlockAdult(); }}
+                className="vg-press w-full rounded-2xl py-3 font-bold"
+                style={{ background: T.rec, color: "#fff" }}
+              >
+                כן, אני מעל 18
+              </button>
+              <button
+                onClick={() => setAsking(false)}
+                className="w-full rounded-2xl py-3 text-sm"
+                style={{ background: T.raised, color: T.muted }}
+              >
+                לא, תסגור את זה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header className="shrink-0 text-center">
+        <div className="text-4xl vg-float">🎙️</div>
+        <h1 className="text-2xl font-bold mt-1 select-none" onClick={tapTitle}>כמה אתם?</h1>
+        <p className="mt-1 text-xs leading-relaxed" style={{ color: T.muted }}>
           כל אחד מקליט חלק מהשורות בלי לדעת מה הסיפור. אחר כך משחקים ביחד ושומעים מה יצא.
         </p>
       </header>
 
-      <div className="flex items-center justify-center gap-6">
+      <div className="shrink-0 flex items-center justify-center gap-6">
         <button
           onClick={() => setCount(count - 1)}
           disabled={count <= 1}
@@ -76,7 +131,7 @@ function PlayersStep({ players, splitMode, onDone }) {
         </button>
         <div
           key={bump}
-          className="vg-pop text-7xl font-bold w-24 text-center tabular-nums"
+          className="vg-pop text-6xl font-bold w-20 text-center tabular-nums"
           style={{ color: T.lamp, textShadow: "0 0 32px rgba(242,181,68,.35)" }}
         >
           {count}
@@ -91,12 +146,12 @@ function PlayersStep({ players, splitMode, onDone }) {
           <Plus size={22} />
         </button>
       </div>
-      <div className="text-center text-xs -mt-3" style={{ color: T.dim }}>
+      <div className="shrink-0 text-center text-xs -mt-1" style={{ color: T.dim }}>
         {count === 1 ? "משחק יחיד — אתה מקליט הכול" : count + " שחקנים"}
       </div>
 
       {count > 1 && (
-        <section className="vg-stagger flex flex-col gap-2 rounded-3xl p-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
+        <section className="vg-stagger flex flex-col gap-2 rounded-2xl p-3 flex-1 vg-scroll" style={{ background: T.surface, border: "1px solid " + T.line }}>
           {names.map((n, i) => (
             <div key={i} className="flex items-center gap-2">
               <div
@@ -118,7 +173,7 @@ function PlayersStep({ players, splitMode, onDone }) {
       )}
 
       {count > 1 && (
-        <section className="vg-rise rounded-3xl px-4 py-1" style={{ background: T.surface, border: "1px solid " + T.line }}>
+        <section className="vg-rise shrink-0 rounded-2xl px-3 py-0.5" style={{ background: T.surface, border: "1px solid " + T.line }}>
           <Toggle
             on={mode === "line"}
             onChange={(v) => setMode(v ? "line" : "char")}
@@ -128,7 +183,7 @@ function PlayersStep({ players, splitMode, onDone }) {
         </section>
       )}
 
-      <div className="mt-auto pt-2">
+      <div className="shrink-0 mt-auto pt-1">
         <PrimaryButton onClick={next}>
           לבחור סיפור <ArrowLeft size={18} />
         </PrimaryButton>
@@ -139,27 +194,38 @@ function PlayersStep({ players, splitMode, onDone }) {
 
 /* ---------------- שלב 2: איזה סיפור ---------------- */
 function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
-  const rec = recommendFor(playerCount);
   const counts = useMemo(() => {
     const m = {};
     (stories || []).forEach((s) => { m[s.id] = flattenLines(s).length; });
     return m;
   }, [stories]);
+  const clean = (stories || []).filter((s) => !s.adult);
+  const spicy = (stories || []).filter((s) => s.adult);
+  const recId = (clean.find((s) => fits(s, playerCount)) || clean[clean.length - 1] || {}).id;
 
   return (
-    <div className="vg-slide flex flex-col gap-5 flex-1">
-      <header className="text-center pt-2">
-        <div className="text-5xl vg-float">📖</div>
-        <h1 className="text-3xl font-bold mt-3">איזה סיפור?</h1>
+    <div className="vg-slide flex flex-col gap-3 flex-1 min-h-0">
+      <header className="shrink-0 text-center">
+        <div className="text-4xl vg-float">📖</div>
+        <h1 className="text-2xl font-bold mt-1">איזה סיפור?</h1>
         <p className="mt-2 text-sm" style={{ color: T.muted }}>
           {playerCount === 1 ? "אתה לבד" : playerCount + " שחקנים"} · כל אחד מקליט בערך{" "}
-          <span style={{ color: T.ink }}>{Math.round((counts[rec] || 0) / playerCount)}</span> שורות בסיפור המומלץ
+          <span style={{ color: T.ink }}>{Math.round((counts[recId] || 0) / playerCount)}</span> שורות בסיפור המומלץ
         </p>
       </header>
 
+      <div className="flex-1 vg-scroll flex flex-col gap-3">
+      {spicy.length > 0 && (
+        <div className="flex items-center gap-2 text-xs" style={{ color: T.dim }}>
+          <div className="h-px flex-1" style={{ background: T.line }} />
+          רגיל
+          <div className="h-px flex-1" style={{ background: T.line }} />
+        </div>
+      )}
+
       <div className="vg-stagger flex flex-col gap-3">
-        {(stories || []).map((s) => {
-          const isRec = s.id === rec;
+        {clean.map((s) => {
+          const isRec = s.id === recId;
           const on = s.id === storyId;
           const nEnd = endingIds(s).length;
           const each = Math.round((counts[s.id] || 0) / playerCount);
@@ -167,7 +233,7 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
             <button
               key={s.id}
               onClick={() => onPick(s.id)}
-              className={"vg-press w-full rounded-3xl p-4 text-right relative overflow-hidden" + (isRec ? " vg-glow" : "")}
+              className={"vg-press w-full rounded-2xl p-3.5 text-right relative overflow-hidden" + (isRec ? " vg-glow" : "")}
               style={{
                 background: isRec ? T.lamp + "14" : T.surface,
                 border: "1px solid " + (isRec ? T.lamp : on ? T.muted : T.line),
@@ -183,8 +249,8 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
               )}
               <div className="text-xl font-bold" style={{ color: isRec ? T.lamp : T.ink }}>{s.title}</div>
               <div className="text-xs mt-0.5" style={{ color: T.dim }}>{s.players}</div>
-              <p className="text-sm mt-2 leading-relaxed" style={{ color: T.muted }}>{s.intro}</p>
-              <div className="flex gap-3 mt-3 text-xs" style={{ color: T.dim }}>
+              <p className="text-xs mt-1.5 leading-relaxed" style={{ color: T.muted }}>{s.intro}</p>
+              <div className="flex gap-3 mt-2 text-xs" style={{ color: T.dim }}>
                 <span><span style={{ color: T.ink }}>{counts[s.id]}</span> שורות</span>
                 <span><span style={{ color: T.ink }}>{nEnd}</span> סופים</span>
                 <span>~<span style={{ color: T.ink }}>{each}</span> לכל אחד</span>
@@ -194,7 +260,52 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
         })}
       </div>
 
-      <button onClick={onBack} className="mt-auto py-2 text-sm flex items-center justify-center gap-1" style={{ color: T.muted }}>
+      {spicy.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 text-xs mt-1" style={{ color: T.rec }}>
+            <div className="h-px flex-1" style={{ background: T.line }} />
+            <Lock size={12} /> 18+ · למבוגרים בלבד
+            <div className="h-px flex-1" style={{ background: T.line }} />
+          </div>
+          <div className="vg-stagger flex flex-col gap-3">
+            {spicy.map((s) => {
+              const isRec = fits(s, playerCount);
+              const nEnd = endingIds(s).length;
+              const each = Math.round((counts[s.id] || 0) / playerCount);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => onPick(s.id)}
+                  className="vg-press w-full rounded-2xl p-3.5 text-right relative overflow-hidden"
+                  style={{
+                    background: isRec ? "rgba(224,67,63,.10)" : T.surface,
+                    border: "1px solid " + (isRec ? T.rec : s.id === storyId ? T.muted : T.line),
+                  }}
+                >
+                  <div
+                    className="absolute top-3 left-3 text-xs rounded-full px-2 py-0.5 font-bold"
+                    style={{ background: T.rec, color: "#fff" }}
+                  >
+                    18+
+                  </div>
+                  <div className="text-xl font-bold" style={{ color: isRec ? T.rec : T.ink }}>{s.title}</div>
+                  <div className="text-xs mt-0.5" style={{ color: T.dim }}>{s.players}</div>
+                  <p className="text-xs mt-1.5 leading-relaxed" style={{ color: T.muted }}>{s.intro}</p>
+                  <div className="flex gap-3 mt-2 text-xs" style={{ color: T.dim }}>
+                    <span><span style={{ color: T.ink }}>{counts[s.id]}</span> שורות</span>
+                    <span><span style={{ color: T.ink }}>{nEnd}</span> סופים</span>
+                    <span>~<span style={{ color: T.ink }}>{each}</span> לכל אחד</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      </div>
+
+      <button onClick={onBack} className="shrink-0 py-2 text-sm flex items-center justify-center gap-1" style={{ color: T.muted }}>
         <Users size={14} /> לשנות כמה אתם
       </button>
     </div>
@@ -205,7 +316,7 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
 export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
-  setupDone, onSetupDone,
+  setupDone, onSetupDone, adultUnlocked, onUnlockAdult,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
   const [step, setStep] = useState(setupDone ? "main" : "players");
@@ -234,8 +345,8 @@ export default function HomeScreen({
   }, [lines]);
 
   const shell = (children) => (
-    <div className="flex flex-col flex-1 min-h-screen px-4 pt-5 pb-8 gap-5">
-      <StepDots step={step} />
+    <div className="flex flex-col flex-1 min-h-0 px-4 pt-3 pb-3 gap-3">
+      <div className="shrink-0"><StepDots step={step} /></div>
       {children}
     </div>
   );
@@ -245,6 +356,8 @@ export default function HomeScreen({
       <PlayersStep
         players={players || []}
         splitMode={splitMode}
+        adultUnlocked={adultUnlocked}
+        onUnlockAdult={onUnlockAdult}
         onDone={(names, mode) => { onSetParty(names, mode); setStep("story"); }}
       />
     );
@@ -263,7 +376,8 @@ export default function HomeScreen({
   }
 
   return shell(
-    <div className="vg-slide flex flex-col gap-5">
+    <div className="vg-slide flex flex-col flex-1 min-h-0 gap-3">
+      <div className="flex-1 vg-scroll flex flex-col gap-4">
       <header className="vg-stagger">
         <div className="flex items-center justify-between text-xs" style={{ color: T.dim }}>
           <button onClick={() => setStep("players")} className="flex items-center gap-1 py-1" style={{ color: T.muted }}>
@@ -337,9 +451,6 @@ export default function HomeScreen({
               <Mic size={18} /> {c.recorded < c.total ? "להקליט שורות" : "לשמוע ולהקליט מחדש"}
             </PrimaryButton>
           )}
-          <PrimaryButton onClick={onPlay} disabled={c.total === 0} tone={ready ? "ok" : "quiet"}>
-            <Play size={18} /> {ready ? "לשחק" : "לשחק בכל זאת (חסרות " + npcMissing + " שורות)"}
-          </PrimaryButton>
           {canInstall && (
             <button
               onClick={onInstall}
@@ -454,23 +565,29 @@ export default function HomeScreen({
           </div>
         )}
       </section>
+      </div>
 
-      <footer className="flex gap-2">
-        <button
-          onClick={onScript}
-          className="flex-1 rounded-2xl py-3 text-sm flex items-center justify-center gap-2"
-          style={{ background: T.surface, border: "1px solid " + T.line, color: T.muted }}
-        >
-          <FileText size={16} /> תסריט
-        </button>
-        <button
-          onClick={onMore}
-          className="flex-1 rounded-2xl py-3 text-sm flex items-center justify-center gap-2"
-          style={{ background: T.surface, border: "1px solid " + T.line, color: T.muted }}
-        >
-          <Settings size={16} /> הגדרות וגיבוי
-        </button>
-      </footer>
+      <div className="shrink-0 flex flex-col gap-2">
+        <PrimaryButton onClick={onPlay} disabled={c.total === 0} tone={ready ? "ok" : "quiet"}>
+          <Play size={18} /> {ready ? "לשחק" : "לשחק בכל זאת (חסרות " + npcMissing + " שורות)"}
+        </PrimaryButton>
+        <footer className="flex gap-2">
+          <button
+            onClick={onScript}
+            className="flex-1 rounded-2xl py-2.5 text-sm flex items-center justify-center gap-2"
+            style={{ background: T.surface, border: "1px solid " + T.line, color: T.muted }}
+          >
+            <FileText size={16} /> תסריט
+          </button>
+          <button
+            onClick={onMore}
+            className="flex-1 rounded-2xl py-2.5 text-sm flex items-center justify-center gap-2"
+            style={{ background: T.surface, border: "1px solid " + T.line, color: T.muted }}
+          >
+            <Settings size={16} /> הגדרות
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }
