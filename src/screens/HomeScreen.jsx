@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { Mic, Play, Check, FileText, Settings, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { Mic, Play, Check, FileText, Settings, Download, ChevronDown, ChevronUp, Users } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, countLines, endingIds } from "../lib/script.js";
 import { Avatar, ProgressBar, SceneLabel, PrimaryButton } from "../components/ui.jsx";
 
 export default function HomeScreen({
-  script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall,
+  script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
+  stories, storyId, onSelectStory, players, playerStats, onParty, onPlayer,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
+  const party = !!(players && players.length > 1);
   const c = countLines(lines, recordings);
   const npcMissing = c.npcTotal - c.npcRecorded;
   const ready = c.npcTotal > 0 && npcMissing === 0;
@@ -37,6 +39,30 @@ export default function HomeScreen({
         <p className="mt-2 text-base leading-relaxed" style={{ color: T.muted }}>{script.intro}</p>
       </header>
 
+      <section className="flex flex-col gap-2">
+        <div className="text-xs" style={{ color: T.dim }}>סיפור</div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {(stories || []).map((s) => {
+            const on = s.id === storyId;
+            return (
+              <button
+                key={s.id}
+                onClick={() => !on && onSelectStory(s.id)}
+                className="shrink-0 rounded-2xl px-3 py-2 text-right"
+                style={{
+                  background: on ? T.lamp + "22" : T.surface,
+                  border: "1px solid " + (on ? T.lamp : T.line),
+                  color: on ? T.lamp : T.muted,
+                }}
+              >
+                <div className="text-sm font-bold">{s.title}</div>
+                <div className="text-xs" style={{ color: T.dim }}>{s.players}</div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="rounded-3xl p-4 flex flex-col gap-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
         <div>
           <div className="flex items-baseline justify-between">
@@ -64,9 +90,44 @@ export default function HomeScreen({
         </p>
 
         <div className="flex flex-col gap-2">
-          <PrimaryButton onClick={() => onStudio(firstMissing >= 0 ? firstMissing : 0)} disabled={c.total === 0}>
-            <Mic size={18} /> {c.recorded < c.total ? "להקליט שורות" : "לשמוע ולהקליט מחדש"}
-          </PrimaryButton>
+          {party ? (
+            <div className="flex flex-col gap-2">
+              <div className="text-xs" style={{ color: T.dim }}>תן את הטלפון לשחקן שתורו להקליט</div>
+              {players.map((name, i) => {
+                const st = (playerStats && playerStats[i]) || { total: 0, done: 0 };
+                const done = st.total > 0 && st.done === st.total;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => onPlayer(i)}
+                    className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-right"
+                    style={{ background: T.surface, border: "1px solid " + (done ? T.ok : T.line) }}
+                  >
+                    <div
+                      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center font-bold"
+                      style={{ background: T.raised, color: done ? T.ok : T.lamp }}
+                    >
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold truncate">{name}</div>
+                      <div className="text-xs" style={{ color: done ? T.ok : T.dim }}>
+                        {done ? "סיים להקליט" : st.done + " מתוך " + st.total + " הוקלטו"}
+                      </div>
+                    </div>
+                    <Mic size={16} style={{ color: done ? T.ok : T.lamp }} />
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <PrimaryButton onClick={() => onStudio(firstMissing >= 0 ? firstMissing : 0)} disabled={c.total === 0}>
+              <Mic size={18} /> {c.recorded < c.total ? "להקליט שורות" : "לשמוע ולהקליט מחדש"}
+            </PrimaryButton>
+          )}
+          <button onClick={onParty} className="w-full py-2 text-xs flex items-center justify-center gap-1" style={{ color: T.muted }}>
+            <Users size={14} /> {party ? "לשנות שחקנים או לחלק מחדש" : "לשחק עם עוד אנשים"}
+          </button>
           <PrimaryButton onClick={onPlay} disabled={c.total === 0} tone={ready ? "ok" : "quiet"}>
             <Play size={18} /> {ready ? "לשחק" : "לשחק בכל זאת (חסרות " + npcMissing + " שורות)"}
           </PrimaryButton>
@@ -129,7 +190,16 @@ export default function HomeScreen({
           <span>כל השורות ({c.recorded} מתוך {c.total} הוקלטו)</span>
           {showLines ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </button>
-        {showLines && (
+        {showLines && blind && (
+          <div
+            className="rounded-2xl p-4 mt-2 text-sm leading-relaxed"
+            style={{ background: T.surface, border: "1px solid " + T.line, color: T.muted }}
+          >
+            הקלטה עיוורת פעילה, אז רשימת השורות מוסתרת — היא מסודרת לפי הסיפור והיא תגלה לך אותו.
+            <div className="mt-1" style={{ color: T.dim }}>אפשר לכבות את המצב הזה בהגדרות.</div>
+          </div>
+        )}
+        {showLines && !blind && (
           <div className="flex flex-col gap-5 mt-2">
             {groups.map((g) => (
               <div key={g.nodeId}>

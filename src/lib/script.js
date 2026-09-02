@@ -1,7 +1,47 @@
 import { T } from "../theme.js";
 
 export function getChar(chars, key) {
-  return (chars && chars[key]) || { name: key || "?", role: "", emoji: "🗣️", color: "#a5978a" };
+  return (chars && chars[key]) || { name: key || "?", role: "", emoji: "🗣️", color: "#a5978a", voice: "" };
+}
+
+// ---- הקלטה עיוורת ----
+// מחולל אקראי עם זרע: אותו זרע נותן תמיד אותו סדר, כדי שהתקדמות ההקלטה לא תקפוץ.
+export function seededRandom(seed) {
+  let a = (seed >>> 0) || 1;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function newSeed() {
+  return (Math.floor(Math.random() * 2147483646) + 1) >>> 0;
+}
+
+// ערבוב מלא (Fisher-Yates) — כל שורה מופיעה בדיוק פעם אחת.
+export function shuffleLines(lines, seed) {
+  const rnd = seededRandom(seed);
+  const out = lines.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const tmp = out[i]; out[i] = out[j]; out[j] = tmp;
+  }
+  return out;
+}
+
+// תג אנונימי + הוראת משחק, במקום שם ותפקיד שמסגירים את הסיפור.
+export function blindVoice(chars, key) {
+  const ch = getChar(chars, key);
+  const keys = Object.keys(chars || {});
+  const n = keys.indexOf(key);
+  return {
+    color: ch.color,
+    badge: key === "you" ? "★" : n >= 0 ? String(n + 1) : "?",
+    label: key === "you" ? "אתה" : "קול " + (n >= 0 ? n + 1 : "?"),
+    voice: ch.voice || "קול רגיל שלך.",
+  };
 }
 
 // כל השורות והאפשרויות בסדר הקלטה נוח: צומת אחרי צומת
@@ -47,11 +87,24 @@ export function endingIds(script) {
   return Object.keys(nodes).filter((k) => nodes[k] && nodes[k].ending);
 }
 
+function asList(v) {
+  return v == null ? [] : Array.isArray(v) ? v : [v];
+}
+
+// requires = חייב שכל הדגלים יהיו דלוקים. unless = לא יוצג אם אחד מהם דלוק.
+function flagsMatch(item, flags) {
+  if (!asList(item.requires).every((f) => flags.includes(f))) return false;
+  if (asList(item.unless).some((f) => flags.includes(f))) return false;
+  return true;
+}
+
 export function choiceAvailable(choice, flags) {
-  const req = choice.requires;
-  if (!req) return true;
-  const list = Array.isArray(req) ? req : [req];
-  return list.every((f) => flags.includes(f));
+  return flagsMatch(choice, flags);
+}
+
+// שורות מותנות: אותו צומת נשמע אחרת לפי הדרך שהגעת אליו
+export function lineAvailable(line, flags) {
+  return flagsMatch(line, flags);
 }
 
 export function applyChoiceFlags(choice, flags) {
@@ -99,6 +152,19 @@ export function validateScript(s) {
       if (!c.next || !s.nodes[c.next]) return "האפשרות ״" + (c.text || c.id) + "״ מצביעה על צומת שלא קיים: " + c.next;
     }
     if (!n.ending && !(n.choices && n.choices.length)) return "הצומת " + k + " צריך choices או ending";
+  }
+  // דגל שאף אפשרות לא מדליקה = תוכן שלא ייראה לעולם. בדרך כלל שגיאת כתיב.
+  const known = new Set();
+  for (const k of Object.keys(s.nodes)) {
+    for (const c of s.nodes[k].choices || []) asList(c.sets).forEach((f) => known.add(f));
+  }
+  for (const k of Object.keys(s.nodes)) {
+    const n = s.nodes[k];
+    for (const item of [...(n.lines || []), ...(n.choices || [])]) {
+      for (const f of [...asList(item.requires), ...asList(item.unless)]) {
+        if (!known.has(f)) return "הדגל ״" + f + "״ (ב־" + item.id + ") לא נדלק באף אפשרות, אז התוכן הזה לא ייראה לעולם";
+      }
+    }
   }
   return "";
 }

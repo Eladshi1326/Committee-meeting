@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X, Volume2, RotateCcw, Home, Flag } from "lucide-react";
 import { T } from "../theme.js";
-import { getChar, textDurationMs, sanityColor, sanityVerdict, choiceAvailable, applyChoiceFlags, endingIds } from "../lib/script.js";
+import { getChar, textDurationMs, sanityColor, sanityVerdict, choiceAvailable, applyChoiceFlags, endingIds, lineAvailable } from "../lib/script.js";
 import { playRec } from "../lib/audio.js";
 import { Avatar, SceneLabel } from "../components/ui.jsx";
 
@@ -67,7 +67,7 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
   const reportedRef = useRef(null);
 
   const node = script.nodes ? script.nodes[nodeId] : null;
-  const nodeLines = (node && node.lines) || [];
+  const nodeLines = ((node && node.lines) || []).filter((l) => lineAvailable(l, flags));
   const utter =
     phase === "line" ? (nodeLines[lineIdx] || null)
     : phase === "spoken" && spoken ? { ...spoken, speaker: "you" }

@@ -1,22 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Square, Play, Trash2, Home, ChevronLeft, ChevronRight, Upload, Pencil, AlertTriangle } from "lucide-react";
 import { T } from "../theme.js";
-import { getChar, fmtSecs, countLines } from "../lib/script.js";
+import { getChar, fmtSecs, countLines, blindVoice } from "../lib/script.js";
 import { pickMime, playRec } from "../lib/audio.js";
 import { Avatar, SceneLabel, Toggle } from "../components/ui.jsx";
 
 const MAX_SECONDS = 120;
 
 export default function StudioScreen({
-  lines, index, setIndex, chars, recordings, settings, onSetSetting,
+  lines, index, setIndex, chars, recordings, settings, onSetSetting, onToggleBlind,
   onSave, onDelete, onEditText, onHome, audioRef,
 }) {
   const line = lines[index] || null;
   const lineId = line ? line.id : null;
   const rec = line ? recordings[line.id] : null;
   const ch = line ? getChar(chars, line.speaker) : null;
+  const blind = !!settings.studioBlind;
+  const bv = line ? blindVoice(chars, line.speaker) : null;
 
-  const [state, setState] = useState("idle"); // idle | recording | saving
+  const [state, setState] = useState("idle"); // idle | prep | recording | saving
   const [secs, setSecs] = useState(0);
   const [micErr, setMicErr] = useState("");
   const [playErr, setPlayErr] = useState(false);
@@ -31,6 +33,7 @@ export default function StudioScreen({
   const startRef = useRef(0);
   const fileRef = useRef(null);
   const stopPreviewRef = useRef(null);
+  const streamRef = useRef(null);
 
   const counts = countLines(lines, recordings);
   const nextMissing = useMemo(() => {
@@ -40,6 +43,20 @@ export default function StudioScreen({
     }
     return -1;
   }, [lines, index, recordings]);
+
+  // המיקרופון נשאר פתוח כל עוד אתה באולפן. getUserMedia הוא ההמתנה הארוכה,
+  // ובלי זה כל אחת מ־88 ההקלטות שילמה אותה מחדש.
+  function liveStream() {
+    const s = streamRef.current;
+    if (s && s.getTracks().some((t) => t.readyState === "live")) return s;
+    return null;
+  }
+
+  function releaseStream() {
+    const s = streamRef.current;
+    if (s) { try { s.getTracks().forEach((t) => t.stop()); } catch (e) { /* ignore */ } }
+    streamRef.current = null;
+  }
 
   function stopPreview() {
     const a = audioRef.current;
@@ -76,6 +93,7 @@ export default function StudioScreen({
         if (mrRef.current && mrRef.current.state !== "inactive") mrRef.current.stop();
       } catch (e) { /* ignore */ }
       if (stopPreviewRef.current) stopPreviewRef.current();
+      releaseStream();
     };
   }, []);
 
@@ -100,7 +118,12 @@ export default function StudioScreen({
     }
     try {
       stopPreview();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let stream = liveStream();
+      if (!stream) {
+        setState("prep");
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+      }
       const mime = pickMime();
       const opts = { audioBitsPerSecond: 64000 };
       if (mime) opts.mimeType = mime;
@@ -110,7 +133,6 @@ export default function StudioScreen({
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
         const type = mr.mimeType || mime || "audio/webm";
         const blob = new Blob(chunksRef.current, { type });
         const dur = Math.round((Date.now() - startRef.current) / 100) / 10;
@@ -131,6 +153,7 @@ export default function StudioScreen({
         if (s >= MAX_SECONDS) stopRec();
       }, 200);
     } catch (e) {
+      releaseStream();
       setMicErr(e && (e.name === "NotAllowedError" || e.name === "SecurityError") ? "denied" : "nomic");
       setState("idle");
     }
@@ -169,7 +192,8 @@ export default function StudioScreen({
 
   const busy = state !== "idle";
   const statusText =
-    state === "recording" ? "מקליט " + fmtSecs(secs)
+    state === "prep" ? "מפעיל מיקרופון..."
+    : state === "recording" ? "מקליט " + fmtSecs(secs)
     : state === "saving" ? "שומר..."
     : rec ? "הוקלט (" + fmtSecs(rec.secs) + "). לחיצה על המיקרופון מקליטה מחדש."
     : "עוד לא הוקלט. לחץ על המיקרופון ודבר.";
@@ -189,15 +213,31 @@ export default function StudioScreen({
       </div>
 
       <div className="px-4 mt-2">
-        <div className="mb-3"><SceneLabel text={line.scene} /></div>
+        {!blind && <div className="mb-3"><SceneLabel text={line.scene} /></div>}
 
         <div key={line.id} className="vg-rise rounded-3xl p-5" style={{ background: T.surface, border: "1px solid " + T.line }}>
           <div className="flex items-center gap-3">
-            <Avatar char={ch} size={48} />
+            {blind ? (
+              <div
+                className="shrink-0 rounded-full flex items-center justify-center font-bold"
+                style={{
+                  width: 48, height: 48, fontSize: 18,
+                  background: bv.color + "22", border: "2px solid " + bv.color, color: bv.color,
+                }}
+              >
+                {bv.badge}
+              </div>
+            ) : (
+              <Avatar char={ch} size={48} />
+            )}
             <div className="min-w-0">
-              <div className="font-bold" style={{ color: ch.color }}>{ch.name}</div>
-              <div className="text-xs" style={{ color: T.dim }}>
-                {line.kind === "choice" ? "תשובה שלך בתור השחקן" : ch.role}
+              <div className="font-bold" style={{ color: blind ? bv.color : ch.color }}>
+                {blind ? bv.label : ch.name}
+              </div>
+              <div className="text-xs leading-relaxed" style={{ color: T.dim }}>
+                {line.kind === "choice"
+                  ? "תשובה שלך בתור השחקן"
+                  : blind ? bv.voice : ch.role}
               </div>
             </div>
             <button
@@ -289,7 +329,7 @@ export default function StudioScreen({
 
           <button
             onClick={state === "recording" ? stopRec : startRec}
-            disabled={state === "saving"}
+            disabled={state === "saving" || state === "prep"}
             className="relative w-24 h-24 rounded-full flex items-center justify-center"
             style={{
               background: state === "recording" ? T.rec : T.lamp,
@@ -347,6 +387,13 @@ export default function StudioScreen({
             on={!!settings.studioAutoNext}
             onChange={(v) => onSetSetting("studioAutoNext", v)}
             label="אחרי כל הקלטה לקפוץ לשורה הבאה שלא הוקלטה"
+            disabled={busy}
+          />
+          <Toggle
+            on={blind}
+            onChange={onToggleBlind}
+            label="הקלטה עיוורת"
+            hint="סדר אקראי, בלי סצנות ובלי שמות — רק הוראה איך לשחק את הקול."
             disabled={busy}
           />
         </div>

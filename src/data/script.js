@@ -4,14 +4,22 @@
 // אפשרות יכולה לכלול: next (לאיזה צומת), sanity (שינוי במד השפיות),
 // sets / clears (דגלים שנדלקים או נכבים), requires (דגל שחייב להיות דלוק כדי שהאפשרות תוצג).
 
+// voice = איך לשחק את הדמות בהקלטה עיוורת, בלי לחשוף מי היא ומה קורה בסיפור.
 export const CHARS = {
-  shula: { name: "שולה", role: "יו״ר הוועד מאז 1987", emoji: "👵", color: "#e07a5f" },
-  moti: { name: "מוטי", role: "דירה 4. לא שילם מ־2014", emoji: "🧔", color: "#81b29a" },
-  doc: { name: "ד״ר רוזנברג", role: "הבן שלו עורך דין", emoji: "👨‍⚕️", color: "#8fb3e6" },
-  noa: { name: "נועה", role: "קומה 2. שולחת הודעות בקבוצה ב־2:00 בלילה", emoji: "👩", color: "#f2cc8f" },
-  yossi: { name: "יוסי רוזנברג", role: "הבן. עורך דין. גר בבניין ממול", emoji: "👨‍💼", color: "#b8a1e6" },
-  rahamim: { name: "רחמים", role: "טכנאי מעליות. אותו כרטיס ביקור מ־2003", emoji: "👷", color: "#b0a89b" },
-  you: { name: "אתה", role: "הדייר החדש. דירה 6", emoji: "🙂", color: "#7ee2d0" },
+  shula: { name: "שולה", role: "יו״ר הוועד מאז 1987", emoji: "👵", color: "#e07a5f",
+    voice: "אישה מבוגרת. קול גבוה וצייקני, בטוח לגמרי בעצמו — כאילו היא כבר החליטה במקומך ואתה רק עוד לא יודע." },
+  moti: { name: "מוטי", role: "דירה 4. לא שילם מ־2014", emoji: "🧔", color: "#81b29a",
+    voice: "גבר. קול נמוך, איטי ורגוע מדי. שום דבר בעולם לא מלחיץ אותו, וזה בדיוק מה שמלחיץ." },
+  doc: { name: "ד״ר רוזנברג", role: "הבן שלו עורך דין", emoji: "👨‍⚕️", color: "#8fb3e6",
+    voice: "גבר מבוגר. קול שקט, מנומס ומדוד — ומתחת לנימוס מסתתר איום קטן שלא נאמר בקול." },
+  noa: { name: "נועה", role: "קומה 2. שולחת הודעות בקבוצה ב־2:00 בלילה", emoji: "👩", color: "#f2cc8f",
+    voice: "אישה צעירה. קול גבוה ומהיר, עם קצת יותר מדי אנרגיה למה שקורה כאן." },
+  yossi: { name: "יוסי רוזנברג", role: "הבן. עורך דין. גר בבניין ממול", emoji: "👨‍💼", color: "#b8a1e6",
+    voice: "גבר צעיר. קול חלק ובטוח, מדבר כאילו הוא מקריא מסמך משפטי גם כשהוא אומר שלום." },
+  rahamim: { name: "רחמים", role: "טכנאי מעליות. אותו כרטיס ביקור מ־2003", emoji: "👷", color: "#b0a89b",
+    voice: "גבר מבוגר ומחוספס. קול צרוד ועייף של מישהו שכבר ראה הכול ולא התרשם." },
+  you: { name: "אתה", role: "הדייר החדש. דירה 6", emoji: "🙂", color: "#7ee2d0",
+    voice: "הקול הרגיל שלך. אתה מגלם את עצמך." },
 };
 
 export const DEFAULT_SCRIPT = {
@@ -38,12 +46,13 @@ export const DEFAULT_SCRIPT = {
     n_pay: {
       scene: "שולה שולפת פנקס קבלות. הפנקס מבוגר ממך.",
       lines: [
+        { id: "v06", speaker: "shula", requires: "paid_half", text: "חצי. אני רושמת שהתחלת לשלם. את החצי השני נסדר בהמשך, ותמיד יש המשך." },
         { id: "l04", speaker: "shula", text: "יופי. אני אוהבת דיירים שמשלמים. ועכשיו הצבעה על גג חדש. תשעת אלפים לדירה. אתה בעד, נכון?" },
         { id: "l05", speaker: "noa", text: "אני בעד, אבל רק אם קודם מתקנים את השער של החניה. הילדים שלי צריכים את זה. לא יודעת למה, אבל צריכים." },
         { id: "l06", speaker: "moti", text: "מה רע בגג הישן? הוא דולף רק כשיורד גשם." },
       ],
       choices: [
-        { id: "c04", text: "בעד. גג זה דבר חשוב.", next: "n_vote", sanity: -25 },
+        { id: "c04", text: "בעד. גג זה דבר חשוב.", next: "n_vote", sanity: -25, sets: ["via_roof"] },
         { id: "c05", text: "נגד. עוד לא פרקתי ארגזים ואתם כבר רוצים תשעת אלפים.", next: "n_war", sanity: -10 },
         { id: "c16", text: "רגע, ומה עם המעלית? היא עצרה איתי אתמול בין הקומות.", next: "n_elevator", sanity: -5 },
       ],
@@ -56,21 +65,22 @@ export const DEFAULT_SCRIPT = {
         { id: "l08", speaker: "moti", text: "אלה מים מעולים. יש בהם מינרלים. ולפעמים חילזון." },
       ],
       choices: [
-        { id: "c06", text: "טוב, בואו נמצא פשרה. אני אשלם חצי.", next: "n_pay", sanity: -10, sets: ["paid"] },
+        { id: "c06", text: "טוב, בואו נמצא פשרה. אני אשלם חצי.", next: "n_pay", sanity: -10, sets: ["paid", "paid_half"] },
         { id: "c07", text: "אני מצטרף למוטי. מה התוכנית?", next: "n_moti_side", sanity: 10, sets: ["moti_friend"] },
-        { id: "c08", text: "אז נראה אתכם בבית משפט.", next: "n_war", sanity: -5 },
+        { id: "c08", text: "אז נראה אתכם בבית משפט.", next: "n_war", sanity: -5, sets: ["via_court_threat"] },
       ],
     },
 
     n_escape: {
       scene: "השירותים של חדר המדרגות. הדלת נעולה. המפתח תלוי על שרשרת, על הצוואר של שולה.",
       lines: [
+        { id: "v07", speaker: "doc", requires: "via_mediation", text: "רגע. באנו לגישור. למה אנחנו עומדים ליד השירותים?" },
         { id: "l09", speaker: "shula", text: "השירותים סגורים בזמן ישיבה. זו תקנה. שלי." },
         { id: "l10", speaker: "doc", text: "בפעם הקודמת מישהו ניסה לצאת באמצע. מר כהן מדירה 7. הוא נפטר לפני שנתיים ועדיין חייב לוועד 3,400 שקל. שולה שולחת לו מכתבים." },
         { id: "l11", speaker: "shula", text: "הוא יענה. בסוף כולם עונים." },
       ],
       choices: [
-        { id: "c09", text: "...אני חוזר לשבת. בשקט.", next: "n_vote", sanity: -15 },
+        { id: "c09", text: "...אני חוזר לשבת. בשקט.", next: "n_vote", sanity: -15, sets: ["via_toilet"] },
         { id: "c10", text: "אני קופץ מהחלון. קומה 1, אני אשרוד.", next: "e_window", sanity: 20 },
         { id: "c17", text: "שילמתי הערב. מגיע לי המפתח.", next: "n_key", sanity: 0, requires: "paid" },
       ],
@@ -84,7 +94,7 @@ export const DEFAULT_SCRIPT = {
       ],
       choices: [
         { id: "c19", text: "נכנס.", next: "e_toilet", sanity: 10 },
-        { id: "c20", text: "עזבו. אני אחכה עד הבית.", next: "n_vote", sanity: -10 },
+        { id: "c20", text: "עזבו. אני אחכה עד הבית.", next: "n_vote", sanity: -10, sets: ["via_key"] },
       ],
     },
 
@@ -96,15 +106,20 @@ export const DEFAULT_SCRIPT = {
         { id: "l32", speaker: "shula", text: "אני שומעת, מוטי. אני שומעת מ־2014." },
       ],
       choices: [
-        { id: "c21", text: "בסדר. אני איתך. הולכים על זה.", next: "n_vote", sanity: 0 },
+        { id: "c21", text: "בסדר. אני איתך. הולכים על זה.", next: "n_vote", sanity: 0, sets: ["via_moti_plan"] },
         { id: "c22", text: "אני מעדיף את המחסן. עכשיו.", next: "e_storage", sanity: 15 },
-        { id: "c23", text: "מוטי, זו תוכנית נוראית. אני חוזר לשולחן.", next: "n_vote", sanity: -5, clears: ["moti_friend"] },
+        { id: "c23", text: "מוטי, זו תוכנית נוראית. אני חוזר לשולחן.", next: "n_vote", sanity: -5, clears: ["moti_friend"], sets: ["via_moti_quit"] },
       ],
     },
 
     n_vote: {
       scene: "שולה מניחה על השולחן קופסת נעליים עם חור. זו הקלפי.",
       lines: [
+        { id: "v01", speaker: "shula", requires: "via_roof", text: "אחרי הצבעה כזאת אני כמעט מרגישה שאפשר לסמוך עליך. כמעט. יש עוד נושא אחד." },
+        { id: "v02", speaker: "shula", requires: "via_toilet", text: "חזרת. יפה. אנשים שיוצאים באמצע ישיבה לא תמיד חוזרים. יש עוד נושא אחד." },
+        { id: "v03", speaker: "doc", requires: "via_key", text: "הוא ויתר על המפתח בלי להתווכח. תרשמי את זה בפרוטוקול. זה יעזור לנו בהמשך." },
+        { id: "v04", speaker: "moti", requires: "via_moti_plan", text: "עכשיו תתנהג רגיל. אל תסתכל עליי. אנחנו באמצע מבצע." },
+        { id: "v05", speaker: "moti", requires: "via_moti_quit", text: "בוגד. אחרי כל מה שעברנו יחד. עברנו ארבע דקות, אבל בכל זאת." },
         { id: "l12", speaker: "shula", text: "ולנושא האחרון: אני פורשת. שלושים ושמונה שנים. הבניין צריך יו״ר חדש." },
         { id: "l13", speaker: "moti", text: "לא אני." },
         { id: "l14", speaker: "doc", text: "לא אני. הבן שלי..." },
@@ -121,11 +136,12 @@ export const DEFAULT_SCRIPT = {
     n_war: {
       scene: "ד״ר רוזנברג מתקשר. הפעם באמת.",
       lines: [
+        { id: "v08", speaker: "shula", requires: "via_court_threat", text: "בית משפט. אתה אמרת את המילה, לא אני. אני רק רוצה שכולם ישמעו שאתה אמרת אותה ראשון." },
         { id: "l16", speaker: "doc", text: "יוסי? זה אבא. תבוא לבניין. יש לנו מקרה." },
         { id: "l17", speaker: "shula", text: "עשרים ושתיים תביעות היו בבניין הזה. ניצחתי בעשרים ושלוש. אל תשאל איך." },
       ],
       choices: [
-        { id: "c14", text: "תשמעו, אני אשלם. רק תעזבו אותי.", next: "e_debt", sanity: -30 },
+        { id: "c14", text: "תשמעו, אני אשלם. רק תעזבו אותי.", next: "e_debt", sanity: -30, sets: ["debt_war"] },
         { id: "c15", text: "תביאו את הבן. גם לי יש עורך דין. זה אני.", next: "n_yossi", sanity: -10 },
       ],
     },
@@ -140,9 +156,9 @@ export const DEFAULT_SCRIPT = {
         { id: "l39", speaker: "shula", text: "עשרים ושלוש. סליחה, עשרים וארבע." },
       ],
       choices: [
-        { id: "c24", text: "יוסי, כמה אתה לוקח לייצג אותי נגד אבא שלך?", next: "e_court", sanity: -20 },
+        { id: "c24", text: "יוסי, כמה אתה לוקח לייצג אותי נגד אבא שלך?", next: "e_court", sanity: -20, sets: ["court_hired"] },
         { id: "c25", text: "בואו נעשה גישור. נועה, את היחידה הנורמלית פה.", next: "n_mediation", sanity: 0 },
-        { id: "c26", text: "בסדר, אני אשלם. רק תעזבו אותי.", next: "e_debt", sanity: -30 },
+        { id: "c26", text: "בסדר, אני אשלם. רק תעזבו אותי.", next: "e_debt", sanity: -30, sets: ["debt_yossi"] },
       ],
     },
 
@@ -160,7 +176,7 @@ export const DEFAULT_SCRIPT = {
       choices: [
         { id: "c27", text: "אני אשלם חצי, ואת מנהלת את הוועד מעכשיו.", next: "e_noa", sanity: -5 },
         { id: "c28", text: "אני משלם הכול, בתנאי שיוסי עובר לגור פה ומשלם ועד.", next: "e_court", sanity: -15 },
-        { id: "c29", text: "אין לי משפט. יש לי שאלה. איפה השירותים?", next: "n_escape", sanity: 5 },
+        { id: "c29", text: "אין לי משפט. יש לי שאלה. איפה השירותים?", next: "n_escape", sanity: 5, sets: ["via_mediation"] },
       ],
     },
 
@@ -173,7 +189,7 @@ export const DEFAULT_SCRIPT = {
       ],
       choices: [
         { id: "c30", text: "אני נכנס. מה כבר יכול לקרות.", next: "e_elevator", sanity: -20 },
-        { id: "c31", text: "כמה עולה החלק מגרמניה?", next: "e_debt", sanity: -15 },
+        { id: "c31", text: "כמה עולה החלק מגרמניה?", next: "e_debt", sanity: -15, sets: ["debt_elevator"] },
         { id: "c32", text: "רחמים, אתה רוצה להיות בוועד?", next: "e_rahamim", sanity: 10 },
       ],
     },
@@ -262,6 +278,9 @@ export const DEFAULT_SCRIPT = {
     e_debt: {
       scene: "שולה מוציאה מחשבון. מכני.",
       lines: [
+        { id: "v09", speaker: "shula", requires: "debt_war", text: "יפה. תמיד עדיף להסתדר לפני שהבן מגיע. הוא כבר בדרך, אז נחכה לו ביחד." },
+        { id: "v10", speaker: "yossi", requires: "debt_yossi", text: "אני רושם שזו הסכמה מרצון. אבא, תחתום כעד." },
+        { id: "v11", speaker: "rahamim", requires: "debt_elevator", text: "אני מזמין את החלק. הוא מגיע בעוד שישה שבועות. או בעוד שנתיים. תלוי בגרמניה." },
         { id: "l24", speaker: "shula", text: "1,200 על העבר. 9,000 על הגג. 400 על השער של נועה. ו־80 שקל על הכיסא שאתה יושב עליו. הוא לא שלך." },
       ],
       ending: {
@@ -273,6 +292,7 @@ export const DEFAULT_SCRIPT = {
     e_court: {
       scene: "שולה מוציאה קלסר. כתום, עבה, ועם השם שלך עליו.",
       lines: [
+        { id: "v12", speaker: "yossi", requires: "court_hired", text: "ביקשת שאייצג אותך נגד אבא שלי. אני לוקח את התיק. אני גם מייצג אותו. זה חוקי, בדקתי." },
         { id: "l25", speaker: "yossi", text: "טוב. אני מייצג את הבניין. אבא, אתה עד. שולה, את התובעת. מוטי, אתה... תישאר." },
         { id: "l26", speaker: "shula", text: "הקלסר מוכן. הכנתי אותו ביום שחתמת על חוזה השכירות." },
       ],

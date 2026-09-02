@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Home, Download, Upload, Trash2, Share, Smartphone, CheckCircle2 } from "lucide-react";
+import { Home, Download, Upload, Trash2, Share, Smartphone, CheckCircle2, Shuffle } from "lucide-react";
 import { T } from "../theme.js";
 import { Toggle } from "../components/ui.jsx";
 
@@ -29,7 +29,7 @@ function DangerButton({ label, armedLabel, onConfirm }) {
 }
 
 export default function MoreScreen({
-  settings, onSetSetting, canInstall, installed, ios, onInstall,
+  settings, onSetSetting, onToggleBlind, onReshuffle, canInstall, installed, ios, onInstall,
   onExport, onImport, exporting, importMsg,
   onClearRecordings, onResetEndings, onResetScript, storageOk, onBack, recordedCount,
 }) {
@@ -73,6 +73,21 @@ export default function MoreScreen({
           label="אחרי כל הקלטה לקפוץ לשורה הבאה שלא הוקלטה"
           hint="מהיר כשמקליטים עשרות שורות ברצף."
         />
+        <Toggle
+          on={!!settings.studioBlind}
+          onChange={onToggleBlind}
+          label="הקלטה עיוורת"
+          hint="סדר אקראי לגמרי, בלי תיאורי סצנה ובלי שמות דמויות — רק הוראה איך לשחק את הקול. ככה לא תדע מה הסיפור עד שתשחק אותו."
+        />
+        {settings.studioBlind && (
+          <button
+            onClick={onReshuffle}
+            className="w-full py-3 text-sm flex items-center gap-2 text-right"
+            style={{ color: T.lamp }}
+          >
+            <Shuffle size={16} /> לערבב את הסדר מחדש
+          </button>
+        )}
       </Section>
 
       <Section title="להתקין כאפליקציה">

@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { T } from "./theme.js";
-import { CHARS, DEFAULT_SCRIPT } from "./data/script.js";
-import { flattenLines, updateLineText, validateScript } from "./lib/script.js";
+import { CHARS } from "./data/script.js";
+import { STORIES, getStory } from "./data/stories.js";
+import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed } from "./lib/script.js";
+import { assignLines, playerProgress } from "./lib/party.js";
 import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS } from "./lib/audio.js";
 import { DEFAULT_SETTINGS, hasIDB, kvGet, kvSet, kvDel, recSet, recDel, recClear, recAll } from "./lib/storage.js";
 import HomeScreen from "./screens/HomeScreen.jsx";
@@ -9,6 +11,7 @@ import StudioScreen from "./screens/StudioScreen.jsx";
 import PlayScreen from "./screens/PlayScreen.jsx";
 import ScriptScreen from "./screens/ScriptScreen.jsx";
 import MoreScreen from "./screens/MoreScreen.jsx";
+import PartyScreen from "./screens/PartyScreen.jsx";
 
 const BACKUP_VERSION = 1;
 
@@ -21,11 +24,12 @@ function Loading() {
 }
 
 export default function App() {
-  const [script, setScript] = useState(DEFAULT_SCRIPT);
+  const [script, setScript] = useState(STORIES[0]);
   const [recordings, setRecordings] = useState({});
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [endings, setEndings] = useState([]);
-  const [screen, setScreen] = useState("home"); // home | studio | play | script | more
+  const [screen, setScreen] = useState("home"); // home | studio | play | script | more | party
+  const [activePlayer, setActivePlayer] = useState(0);
   const [studioIdx, setStudioIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
@@ -67,14 +71,18 @@ export default function App() {
     let alive = true;
     (async () => {
       if (!hasIDB()) { if (alive) { setStorageOk(false); setLoaded(true); } return; }
-      try {
-        const s = await kvGet("script");
-        if (s && !validateScript(s) && alive) setScript(s);
-      } catch (e) { /* אין תסריט שמור */ }
+      let sid = "s1";
       try {
         const st = await kvGet("settings");
-        if (st && typeof st === "object" && alive) setSettings({ ...DEFAULT_SETTINGS, ...st });
+        if (st && typeof st === "object") {
+          sid = st.storyId || "s1";
+          if (alive) setSettings({ ...DEFAULT_SETTINGS, ...st });
+        }
       } catch (e) { /* אין הגדרות */ }
+      try {
+        const s = await kvGet("script:" + sid);
+        if (alive) setScript(s && !validateScript(s) ? s : getStory(sid));
+      } catch (e) { if (alive) setScript(getStory(sid)); }
       try {
         const en = await kvGet("endings");
         if (Array.isArray(en) && alive) setEndings(en);
@@ -131,12 +139,43 @@ export default function App() {
 
   const applyScript = useCallback(async (s) => {
     setScript(s);
-    if (storageOk) { try { await kvSet("script", s); } catch (e) { /* ignore */ } }
+    if (storageOk) { try { await kvSet("script:" + (s.id || "s1"), s); } catch (e) { /* ignore */ } }
   }, [storageOk]);
 
   const resetScript = useCallback(async () => {
-    setScript(DEFAULT_SCRIPT);
-    if (storageOk) { try { await kvDel("script"); } catch (e) { /* ignore */ } }
+    const id = script.id || "s1";
+    setScript(getStory(id));
+    if (storageOk) { try { await kvDel("script:" + id); } catch (e) { /* ignore */ } }
+  }, [storageOk, script]);
+
+  // מעבר בין סיפורים. ההקלטות נשמרות לפי id של שורה, וה-id ייחודי בין הסיפורים,
+  // אז מה שהוקלט בסיפור אחד לא נדרס על ידי אחר.
+  const selectStory = useCallback(async (id) => {
+    let s = getStory(id);
+    if (storageOk) {
+      try { const saved = await kvGet("script:" + id); if (saved && !validateScript(saved)) s = saved; }
+      catch (e) { /* אין גרסה ערוכה */ }
+    }
+    setScript(s);
+    setStudioIdx(0);
+    setActivePlayer(0);
+    setScreen("home");
+    setSettings((prev) => {
+      const next = { ...prev, storyId: id };
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+  }, [storageOk]);
+
+  // חלוקה מחדש בין שחקנים. זרע חדש = חלוקה חדשה, ההקלטות עצמן נשארות.
+  const setParty = useCallback((names, mode) => {
+    setSettings((prev) => {
+      const next = { ...prev, players: names, splitMode: mode, splitSeed: newSeed() };
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+    setActivePlayer(0);
+    setStudioIdx(0);
   }, [storageOk]);
 
   const editLineText = useCallback((id, text) => {
@@ -149,6 +188,26 @@ export default function App() {
       if (storageOk) { kvSet("settings", next).catch(() => {}); }
       return next;
     });
+  }, [storageOk]);
+
+  // הקלטה עיוורת: מדליקים, ומגרילים זרע פעם אחת כדי שהסדר יישאר קבוע בין כניסות
+  const toggleBlind = useCallback((on) => {
+    setSettings((prev) => {
+      const next = { ...prev, studioBlind: !!on };
+      if (on && !prev.studioSeed) next.studioSeed = newSeed();
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+    setStudioIdx(0);
+  }, [storageOk]);
+
+  const reshuffleStudio = useCallback(() => {
+    setSettings((prev) => {
+      const next = { ...prev, studioSeed: newSeed() };
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+    setStudioIdx(0);
   }, [storageOk]);
 
   const recordEnding = useCallback((nodeId) => {
@@ -244,7 +303,18 @@ export default function App() {
 
   const lines = useMemo(() => flattenLines(script), [script]);
   const chars = script.characters || CHARS;
-  const safeIdx = Math.min(studioIdx, Math.max(0, lines.length - 1));
+  // באולפן: במצב עיוור מקליטים בסדר אקראי קבוע, כדי לא להבין את הסיפור מראש
+  const players = settings.players || [];
+  const party = players.length > 1;
+  const assign = useMemo(
+    () => assignLines(lines, players.length, settings.splitMode, settings.splitSeed || 1, chars),
+    [lines, players.length, settings.splitMode, settings.splitSeed, chars]
+  );
+  const studioLines = useMemo(() => {
+    const mine = party ? lines.filter((l) => assign[l.id] === activePlayer) : lines;
+    return settings.studioBlind ? shuffleLines(mine, (settings.studioSeed || 1) + activePlayer * 7919) : mine;
+  }, [lines, assign, party, activePlayer, settings.studioBlind, settings.studioSeed]);
+  const safeIdx = Math.min(studioIdx, Math.max(0, studioLines.length - 1));
 
   function startGame() {
     // בתוך לחיצה של המשתמש: "פותחים" את נגן האודיו כדי שהשורות ינוגנו אוטומטית גם ב-iOS
@@ -265,13 +335,14 @@ export default function App() {
           <Loading />
         ) : screen === "studio" ? (
           <StudioScreen
-            lines={lines}
+            lines={studioLines}
             index={safeIdx}
             setIndex={setStudioIdx}
             chars={chars}
             recordings={recordings}
             settings={settings}
             onSetSetting={setSetting}
+            onToggleBlind={toggleBlind}
             onSave={saveRecording}
             onDelete={deleteRecording}
             onEditText={editLineText}
@@ -289,12 +360,22 @@ export default function App() {
             onExit={exitPlay}
             onEnding={recordEnding}
           />
+        ) : screen === "party" ? (
+          <PartyScreen
+            players={players}
+            splitMode={settings.splitMode}
+            lineCount={lines.length}
+            onApply={setParty}
+            onBack={() => setScreen("home")}
+          />
         ) : screen === "script" ? (
           <ScriptScreen script={script} onApply={applyScript} onReset={resetScript} onBack={() => setScreen("home")} />
         ) : screen === "more" ? (
           <MoreScreen
             settings={settings}
             onSetSetting={setSetting}
+            onToggleBlind={toggleBlind}
+            onReshuffle={reshuffleStudio}
             canInstall={canInstall}
             installed={installed}
             ios={isIOS()}
@@ -320,7 +401,20 @@ export default function App() {
             storageOk={storageOk}
             storageWarn={storageWarn}
             canInstall={canInstall && !installed}
-            onStudio={(i) => { setStudioIdx(i); setScreen("studio"); }}
+            blind={!!settings.studioBlind}
+            stories={STORIES}
+            storyId={script.id || "s1"}
+            onSelectStory={selectStory}
+            players={players}
+            playerStats={party ? playerProgress(lines, assign, recordings, players.length) : null}
+            onParty={() => setScreen("party")}
+            onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}
+            onStudio={(i) => {
+              const src = lines[i];
+              const j = src ? studioLines.findIndex((l) => l.id === src.id) : 0;
+              setStudioIdx(j >= 0 ? j : 0);
+              setScreen("studio");
+            }}
             onPlay={startGame}
             onScript={() => setScreen("script")}
             onMore={() => setScreen("more")}

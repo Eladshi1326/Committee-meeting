@@ -9,6 +9,12 @@ export const DEFAULT_SETTINGS = {
   autoAdvance: true,   // לעבור לשורה הבאה לבד כשההקלטה נגמרת
   muted: false,        // טקסט בלבד
   studioAutoNext: false, // באולפן: אחרי הקלטה לקפוץ לשורה הבאה שלא הוקלטה
+  studioBlind: false,    // הקלטה עיוורת: סדר אקראי, בלי שמות וסצנות
+  studioSeed: 0,         // הזרע של הערבוב, כדי שהסדר יישאר קבוע
+  storyId: "s1",         // איזה סיפור פעיל
+  players: [],           // שמות השחקנים. ריק או אחד = משחק יחיד
+  splitMode: "line",     // "line" = שורות אקראיות לכל אחד, "char" = דמות שלמה לכל אחד
+  splitSeed: 0,          // זרע החלוקה בין השחקנים
 };
 
 let dbPromise = null;
