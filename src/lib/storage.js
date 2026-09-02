@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = {
   players: [],           // שמות השחקנים. ריק או אחד = משחק יחיד
   splitMode: "line",     // "line" = שורות אקראיות לכל אחד, "char" = דמות שלמה לכל אחד
   splitSeed: 0,          // זרע החלוקה בין השחקנים
+  setupDone: false,      // עברו את מסך הפתיחה (כמה אתם + איזה סיפור)
 };
 
 let dbPromise = null;

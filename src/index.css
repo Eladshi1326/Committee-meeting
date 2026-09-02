@@ -73,3 +73,45 @@ button:focus-visible, textarea:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .vg-rise, .vg-pulse-ring, .vg-blink { animation: none; }
 }
+
+/* ---- מסך הבית: אנימציות ---- */
+@keyframes vg-pop {
+  0% { transform: scale(.6); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes vg-slide {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vg-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
+}
+@keyframes vg-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242,181,68,.0); }
+  50% { box-shadow: 0 0 28px 2px rgba(242,181,68,.28); }
+}
+@keyframes vg-tick {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.vg-pop { animation: vg-pop .35s cubic-bezier(.2,.9,.3,1.3) both; }
+.vg-slide { animation: vg-slide .32s ease-out both; }
+.vg-float { animation: vg-float 3.2s ease-in-out infinite; display: inline-block; }
+.vg-glow { animation: vg-glow 2.4s ease-in-out infinite; }
+.vg-stagger > * { animation: vg-rise .34s ease-out both; }
+.vg-stagger > *:nth-child(1) { animation-delay: .03s; }
+.vg-stagger > *:nth-child(2) { animation-delay: .09s; }
+.vg-stagger > *:nth-child(3) { animation-delay: .15s; }
+.vg-stagger > *:nth-child(4) { animation-delay: .21s; }
+.vg-stagger > *:nth-child(5) { animation-delay: .27s; }
+.vg-stagger > *:nth-child(6) { animation-delay: .33s; }
+.vg-stagger > *:nth-child(n+7) { animation-delay: .38s; }
+.vg-steps > span { transform-origin: right; animation: vg-tick .4s ease-out both; }
+.vg-press { transition: transform .12s ease, opacity .12s ease; }
+.vg-press:active { transform: scale(.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vg-pop, .vg-slide, .vg-float, .vg-glow, .vg-stagger > *, .vg-steps > span { animation: none; }
+}

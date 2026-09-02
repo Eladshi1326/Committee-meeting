@@ -11,7 +11,6 @@ import StudioScreen from "./screens/StudioScreen.jsx";
 import PlayScreen from "./screens/PlayScreen.jsx";
 import ScriptScreen from "./screens/ScriptScreen.jsx";
 import MoreScreen from "./screens/MoreScreen.jsx";
-import PartyScreen from "./screens/PartyScreen.jsx";
 
 const BACKUP_VERSION = 1;
 
@@ -360,14 +359,6 @@ export default function App() {
             onExit={exitPlay}
             onEnding={recordEnding}
           />
-        ) : screen === "party" ? (
-          <PartyScreen
-            players={players}
-            splitMode={settings.splitMode}
-            lineCount={lines.length}
-            onApply={setParty}
-            onBack={() => setScreen("home")}
-          />
         ) : screen === "script" ? (
           <ScriptScreen script={script} onApply={applyScript} onReset={resetScript} onBack={() => setScreen("home")} />
         ) : screen === "more" ? (
@@ -406,8 +397,11 @@ export default function App() {
             storyId={script.id || "s1"}
             onSelectStory={selectStory}
             players={players}
+            splitMode={settings.splitMode}
             playerStats={party ? playerProgress(lines, assign, recordings, players.length) : null}
-            onParty={() => setScreen("party")}
+            onSetParty={setParty}
+            setupDone={!!settings.setupDone}
+            onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}
             onStudio={(i) => {
               const src = lines[i];
