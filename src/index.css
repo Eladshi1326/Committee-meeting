@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #17130f;
+  color: #f4ead9;
+  font-family: "Heebo", "Rubik", "Assistant", -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Hebrew", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100%;
+}
+
+button, textarea, input {
+  font-family: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+button:focus-visible, textarea:focus-visible {
+  outline: 2px solid #f2b544;
+  outline-offset: 2px;
+}
+
+/* שוליים בטוחים כשהאפליקציה מותקנת ורצה בלי סרגל דפדפן */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+.vg-divide > * + * {
+  border-top: 1px solid #3d3229;
+}
+
+@keyframes vg-pulse {
+  0% { transform: scale(1); opacity: .55; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@keyframes vg-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vg-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+
+.vg-rise { animation: vg-rise .3s ease-out both; }
+.vg-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #e0433f;
+  animation: vg-pulse 1.2s ease-out infinite;
+}
+.vg-blink { animation: vg-blink 1s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vg-rise, .vg-pulse-ring, .vg-blink { animation: none; }
+}
