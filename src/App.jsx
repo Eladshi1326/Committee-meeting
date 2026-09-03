@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { T } from "./theme.js";
 import { CHARS } from "./data/script.js";
 import { storiesFor, getStory, isAdult } from "./data/stories.js";
-import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed } from "./lib/script.js";
+import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, buildNameMap } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
 import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS } from "./lib/audio.js";
 import { DEFAULT_SETTINGS, hasIDB, kvGet, kvSet, kvDel, recSet, recDel, recClear, recAll } from "./lib/storage.js";
@@ -311,8 +311,14 @@ export default function App() {
     setCanInstall(false);
   }, []);
 
-  const lines = useMemo(() => flattenLines(script), [script]);
-  const chars = script.characters || CHARS;
+  // התסריט הגולמי (עם {{key}}) נשמר ונערך. המסכים מקבלים עותק עם שמות אמיתיים.
+  const nameMap = useMemo(
+    () => buildNameMap(script, settings.players || [], settings.realNames !== false),
+    [script, settings.players, settings.realNames]
+  );
+  const view = useMemo(() => personalizeScript(script, nameMap), [script, nameMap]);
+  const lines = useMemo(() => flattenLines(view), [view]);
+  const chars = view.characters || CHARS;
   // באולפן: במצב עיוור מקליטים בסדר אקראי קבוע, כדי לא להבין את הסיפור מראש
   const players = settings.players || [];
   const party = players.length > 1;
@@ -361,7 +367,8 @@ export default function App() {
           />
         ) : screen === "play" ? (
           <PlayScreen
-            script={script}
+            script={view}
+            players={players}
             chars={chars}
             recordings={recordings}
             settings={settings}
@@ -397,7 +404,8 @@ export default function App() {
           />
         ) : (
           <HomeScreen
-            script={script}
+            script={view}
+            nameMap={nameMap}
             chars={chars}
             lines={lines}
             recordings={recordings}

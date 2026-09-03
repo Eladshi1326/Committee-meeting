@@ -4,6 +4,58 @@ export function getChar(chars, key) {
   return (chars && chars[key]) || { name: key || "?", role: "", emoji: "🗣️", color: "#a5978a", voice: "" };
 }
 
+// ---- דגלים לפי כמות שחקנים ----
+// המשחק מתחיל עם p1..pN דלוקים (N = כמה משחקים). ככה תסריט יכול לכתוב
+// requires: "p4" לסצנה שקיימת רק מארבעה ומעלה, או unless: "p3" לסצנה של זוג.
+export function playerFlags(count) {
+  const n = Math.max(1, count || 1);
+  const out = [];
+  for (let i = 1; i <= n; i++) out.push("p" + i);
+  return out;
+}
+
+// ---- שמות אמיתיים ----
+// בתסריט כתוב {{key}} במקום שם של דמות. כאן זה הופך לשם: של השחקן שמגלם
+// אותה אם יש, ואם לא — השם המקורי מהתסריט.
+export function personalizeText(text, chars, nameMap) {
+  if (!text || text.indexOf("{{") < 0) return text;
+  return text.replace(/\{\{(\w+)\}\}/g, (m, k) =>
+    (nameMap && nameMap[k]) || (chars && chars[k] && chars[k].name) || m
+  );
+}
+
+// עותק של התסריט שכל הטקסטים בו כבר עם שמות. התסריט המקורי (עם {{key}})
+// נשאר כמו שהוא, כדי שעריכה ושמירה לא יקבעו שמות של אנשים בתוך הקובץ.
+export function personalizeScript(script, nameMap) {
+  const chars = (script && script.characters) || {};
+  const outChars = {};
+  Object.keys(chars).forEach((k) => {
+    outChars[k] = { ...chars[k], name: (nameMap && nameMap[k]) || chars[k].name };
+  });
+  const p = (t) => personalizeText(t, chars, nameMap);
+  const nodes = {};
+  Object.keys((script && script.nodes) || {}).forEach((k) => {
+    const n = script.nodes[k];
+    nodes[k] = {
+      ...n,
+      scene: p(n.scene),
+      lines: (n.lines || []).map((l) => ({ ...l, text: p(l.text) })),
+      choices: n.choices ? n.choices.map((c) => ({ ...c, text: p(c.text) })) : n.choices,
+      ending: n.ending ? { ...n.ending, title: p(n.ending.title), text: p(n.ending.text) } : n.ending,
+    };
+  });
+  return { ...script, intro: p(script.intro), characters: outChars, nodes };
+}
+
+// שחקן i מגלם את הדמות ה-i בתסריט (בלי "you", שזה תמיד מי שמשחק).
+export function buildNameMap(script, players, enabled) {
+  if (!enabled || !players || players.length < 2) return null;
+  const keys = Object.keys((script && script.characters) || {}).filter((k) => k !== "you");
+  const map = {};
+  keys.forEach((k, i) => { if (players[i]) map[k] = players[i].trim() || undefined; });
+  return map;
+}
+
 // ---- הקלטה עיוורת ----
 // מחולל אקראי עם זרע: אותו זרע נותן תמיד אותו סדר, כדי שהתקדמות ההקלטה לא תקפוץ.
 export function seededRandom(seed) {
@@ -162,6 +214,7 @@ export function validateScript(s) {
     const n = s.nodes[k];
     for (const item of [...(n.lines || []), ...(n.choices || [])]) {
       for (const f of [...asList(item.requires), ...asList(item.unless)]) {
+        if (/^p\d+$/.test(f)) continue; // דגל כמות שחקנים, נדלק אוטומטית
         if (!known.has(f)) return "הדגל ״" + f + "״ (ב־" + item.id + ") לא נדלק באף אפשרות, אז התוכן הזה לא ייראה לעולם";
       }
     }

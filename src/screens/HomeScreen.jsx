@@ -316,7 +316,7 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
 export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
-  setupDone, onSetupDone, adultUnlocked, onUnlockAdult,
+  setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
   const [step, setStep] = useState(setupDone ? "main" : "players");
@@ -389,6 +389,14 @@ export default function HomeScreen({
         </div>
         <h1 className="text-3xl font-bold leading-tight mt-2">{script.title}</h1>
         <p className="mt-2 text-base leading-relaxed" style={{ color: T.muted }}>{script.intro}</p>
+        {nameMap && Object.keys(nameMap).length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs" style={{ color: T.dim }}>
+            <span>בסיפור הזה מופיעים:</span>
+            {Object.values(nameMap).filter(Boolean).map((n, i) => (
+              <span key={i} className="rounded-full px-2 py-0.5" style={{ background: T.lamp + "22", color: T.lamp, border: "1px solid " + T.lamp + "55" }}>{n}</span>
+            ))}
+          </div>
+        )}
       </header>
 
       <section className="vg-rise rounded-3xl p-4 flex flex-col gap-4" style={{ background: T.surface, border: "1px solid " + T.line }}>

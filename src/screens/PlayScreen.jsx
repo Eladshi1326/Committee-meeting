@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X, Volume2, RotateCcw, Home, Flag } from "lucide-react";
 import { T } from "../theme.js";
-import { getChar, textDurationMs, sanityColor, sanityVerdict, choiceAvailable, applyChoiceFlags, endingIds, lineAvailable } from "../lib/script.js";
+import { getChar, textDurationMs, sanityColor, sanityVerdict, choiceAvailable, applyChoiceFlags, endingIds, lineAvailable, playerFlags } from "../lib/script.js";
 import { playRec } from "../lib/audio.js";
 import { Avatar, SceneLabel } from "../components/ui.jsx";
 
@@ -52,13 +52,16 @@ function EndingCard({ ending, sanity, steps, foundCount, totalEndings, isNew, on
   );
 }
 
-export default function PlayScreen({ script, chars, recordings, settings, endings, audioRef, onExit, onEnding }) {
+export default function PlayScreen({ script, chars, recordings, settings, endings, audioRef, onExit, onEnding, players }) {
+  const group = (players || []).filter(Boolean);
+  const turnsOn = group.length > 1 && settings.turns !== false;
   const [nodeId, setNodeId] = useState(script.start);
   const [lineIdx, setLineIdx] = useState(0);
-  const [phase, setPhase] = useState("line"); // line | spoken | choices | ending
+  const [phase, setPhase] = useState("intro"); // intro | line | spoken | choices | ending
   const [spoken, setSpoken] = useState(null);
   const [sanity, setSanity] = useState(100);
-  const [flags, setFlags] = useState([]);
+  const [flags, setFlags] = useState(() => playerFlags(group.length));
+  const [turn, setTurn] = useState(0);
   const [steps, setSteps] = useState(0);
   const [needTap, setNeedTap] = useState(false);
   const [waiting, setWaiting] = useState(false);
@@ -173,6 +176,7 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
     setSanity((s) => Math.max(0, Math.min(100, s + (c.sanity || 0))));
     setFlags((f) => applyChoiceFlags(c, f));
     setSteps((n) => n + 1);
+    setTurn((t) => t + 1);
     const rec = settings.playChoices ? recFor(c.id) : null;
     if (rec) { setSpoken(c); setPhase("spoken"); }
     else goNext(c);
@@ -193,8 +197,9 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
     setWaiting(false);
     setNewEnding(false);
     setSanity(100);
-    setFlags([]);
+    setFlags(playerFlags(group.length));
     setSteps(0);
+    setTurn(0);
     setNodeId(script.start);
     setLineIdx(0);
     setPhase("line");
@@ -229,9 +234,36 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
         </div>
       </div>
 
-      <div className="shrink-0 px-4 mt-3"><SceneLabel text={node.scene} /></div>
+      {phase !== "intro" && <div className="shrink-0 px-4 mt-3"><SceneLabel text={node.scene} /></div>}
 
-      {phase === "ending" ? (
+      {phase === "intro" ? (
+        <div className="flex-1 vg-scroll flex flex-col justify-center px-5 py-6 vg-rise">
+          <div className="text-xs mb-2" style={{ color: T.dim }}>לפני שמתחילים</div>
+          <h2 className="text-3xl font-bold leading-tight">{script.title}</h2>
+          <p className="mt-3 text-base leading-relaxed" style={{ color: T.ink }}>{script.intro}</p>
+          {script.characters && script.characters.you && script.characters.you.role && (
+            <div className="mt-4 rounded-2xl p-3 text-sm flex items-center gap-3" style={{ background: T.surface, border: "1px solid " + T.line }}>
+              <Avatar char={script.characters.you} size={40} />
+              <div>
+                <div className="text-xs" style={{ color: T.dim }}>אתה</div>
+                <div style={{ color: T.ink }}>{script.characters.you.role}</div>
+              </div>
+            </div>
+          )}
+          <p className="mt-4 text-xs leading-relaxed" style={{ color: T.dim }}>
+            {turnsOn
+              ? "הדמויות מדברות, ובכל צומת מישהו אחר מחליט מה לענות. הסדר: " + group.join(" ← ") + ". כל תשובה משנה את מד השפיות ואת הדרך לאחד הסופים."
+              : "הדמויות מדברות, ואתה בוחר מה לענות. כל תשובה משנה את מד השפיות ואת הדרך לאחד הסופים."}
+          </p>
+          <button
+            onClick={() => setPhase("line")}
+            className="vg-press mt-6 w-full rounded-2xl py-4 font-bold text-lg"
+            style={{ background: T.lamp, color: T.onLamp }}
+          >
+            להתחיל
+          </button>
+        </div>
+      ) : phase === "ending" ? (
         <EndingCard
           ending={node.ending || { title: "סוף", text: "" }}
           sanity={sanity}
@@ -283,7 +315,20 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
           <div className="shrink-0 px-4 pb-5 max-h-[52%] vg-scroll">
             {phase === "choices" && (
               <div className="flex flex-col gap-2 vg-rise">
-                <div className="text-xs mb-1" style={{ color: T.dim }}>מה אתה עונה?</div>
+                {turnsOn ? (
+                  <div key={turn} className="vg-pop flex items-center gap-2 mb-2 rounded-2xl px-3 py-2" style={{ background: T.lamp + "1a", border: "1px solid " + T.lamp + "66" }}>
+                    <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold" style={{ background: T.lamp, color: T.onLamp }}>
+                      {(turn % group.length) + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs" style={{ color: T.dim }}>התור של</div>
+                      <div className="font-bold truncate" style={{ color: T.lamp }}>{group[turn % group.length]}</div>
+                    </div>
+                    <div className="mr-auto text-xs" style={{ color: T.dim }}>מה אתה עונה?</div>
+                  </div>
+                ) : (
+                  <div className="text-xs mb-1" style={{ color: T.dim }}>מה אתה עונה?</div>
+                )}
                 {visibleChoices.map((c) => (
                   <button
                     key={c.id}

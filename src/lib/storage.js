@@ -17,6 +17,8 @@ export const DEFAULT_SETTINGS = {
   splitSeed: 0,          // זרע החלוקה בין השחקנים
   setupDone: false,      // עברו את מסך הפתיחה (כמה אתם + איזה סיפור)
   adultUnlocked: false,  // המדף של 18+ נפתח
+  realNames: true,       // השמות של השחקנים נכנסים לסיפור במקום שמות הדמויות
+  turns: true,           // במשחק קבוצתי: כל צומת מישהו אחר מחליט
 };
 
 let dbPromise = null;

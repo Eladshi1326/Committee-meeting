@@ -66,6 +66,21 @@ export default function MoreScreen({
         />
       </Section>
 
+      <Section title="שחקנים">
+        <Toggle
+          on={settings.realNames !== false}
+          onChange={(v) => onSetSetting("realNames", v)}
+          label="השמות שלכם בתוך הסיפור"
+          hint="כשמשחקים כמה אנשים, הדמויות מקבלות את השמות של השחקנים. מי שמקליט אומר את השם של החבר שלו, ובמשחק שומעים את זה."
+        />
+        <Toggle
+          on={settings.turns !== false}
+          onChange={(v) => onSetSetting("turns", v)}
+          label="תורות בבחירות"
+          hint="בכל צומת מישהו אחר מחליט מה לענות, לפי הסדר של השחקנים. מופיע במשחק: ״התור של דניאל״."
+        />
+      </Section>
+
       <Section title="אולפן">
         <Toggle
           on={!!settings.studioAutoNext}
