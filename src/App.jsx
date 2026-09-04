@@ -328,6 +328,19 @@ export default function App() {
     [script, settings.players, settings.realNames]
   );
   const view = useMemo(() => personalizeScript(script, nameMap), [script, nameMap]);
+  // כפתור החזרה של הטלפון / הדפדפן מחזיר מסך אחורה, לא סוגר את המשחק
+  useEffect(() => {
+    if (screen === "home") return undefined;
+    try { window.history.pushState({ vg: screen }, ""); } catch (e) { /* ignore */ }
+    const onPop = () => {
+      const a = audioRef.current;
+      if (a) { try { a.pause(); } catch (e) { /* ignore */ } }
+      setScreen("home");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [screen]);
+
   const lines = useMemo(() => flattenLines(view), [view]);
   const chars = view.characters || CHARS;
   // באולפן: במצב עיוור מקליטים בסדר אקראי קבוע, כדי לא להבין את הסיפור מראש

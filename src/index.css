@@ -132,3 +132,23 @@ button:focus-visible, textarea:focus-visible {
   overscroll-behavior: contain;
 }
 .vg-noscroll { overflow: hidden; min-height: 0; }
+
+/* ---- כפתור חזרה למעלה ---- */
+.vg-toplink {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #f2b544;
+  color: #1c1408;
+  border: none;
+  box-shadow: 0 6px 22px rgba(0,0,0,.45);
+  animation: vg-rise .25s ease-out both;
+}

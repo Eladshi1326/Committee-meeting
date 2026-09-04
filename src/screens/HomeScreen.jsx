@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import {
   Mic, Play, Check, FileText, Settings, Download, ChevronDown, ChevronUp,
-  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle, Dice5, Volume2,
+  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle, Dice5, Volume2, ArrowUp,
 } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, countLines, endingIds, flattenLines } from "../lib/script.js";
@@ -328,6 +328,13 @@ export default function HomeScreen({
   const ready = c.npcTotal > 0 && npcMissing === 0;
   const firstMissing = lines.findIndex((l) => !recordings[l.id]);
   const [showLines, setShowLines] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const scrollRef = useRef(null);
+
+  function backToTop() {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   const allEndings = useMemo(() => endingIds(script), [script]);
   const found = allEndings.filter((id) => endings.includes(id));
@@ -377,8 +384,12 @@ export default function HomeScreen({
   }
 
   return shell(
-    <div className="vg-slide flex flex-col flex-1 min-h-0 gap-3">
-      <div className="flex-1 vg-scroll flex flex-col gap-4">
+    <div className="vg-slide flex flex-col flex-1 min-h-0 gap-3 relative">
+      <div
+        ref={scrollRef}
+        onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 240)}
+        className="flex-1 vg-scroll flex flex-col gap-4"
+      >
       <header className="vg-stagger">
         <div className="flex items-center justify-between text-xs" style={{ color: T.dim }}>
           <button onClick={() => setStep("players")} className="flex items-center gap-1 py-1" style={{ color: T.muted }}>
@@ -479,7 +490,7 @@ export default function HomeScreen({
         {storageWarn && <p className="text-xs" style={{ color: T.rec }}>{storageWarn}</p>}
       </section>
 
-      {party && wordProgress && (
+      {(
         <section className="vg-rise rounded-3xl p-4 flex flex-col gap-3" style={{ background: T.surface, border: "1px solid " + T.lamp + "44" }}>
           <div className="flex items-start gap-3">
             <div className="text-3xl vg-float">🎲</div>
@@ -492,6 +503,17 @@ export default function HomeScreen({
             </div>
           </div>
 
+          {!party && (
+            <button
+              onClick={() => setStep("players")}
+              className="vg-press w-full rounded-2xl py-3 text-sm font-bold flex items-center justify-center gap-2"
+              style={{ background: T.raised, color: T.lamp, border: "1px solid " + T.lamp + "66" }}
+            >
+              <Users size={16} /> צריך לפחות 2 שחקנים — להוסיף אנשים
+            </button>
+          )}
+
+          {party && (
           <div className="flex flex-col gap-1.5">
             {players.map((name, i) => {
               const total = wordTaskCount ? wordTaskCount(i) : 0;
@@ -514,7 +536,9 @@ export default function HomeScreen({
               );
             })}
           </div>
+          )}
 
+          {party && wordProgress && (
           <button
             onClick={onWordPlay}
             disabled={wordProgress.done === 0}
@@ -532,6 +556,7 @@ export default function HomeScreen({
                 ? "קודם מקליטים"
                 : "להשמיע בכל זאת (" + (wordProgress.total - wordProgress.done) + " חסרות)"}
           </button>
+          )}
         </section>
       )}
 
@@ -631,6 +656,12 @@ export default function HomeScreen({
         )}
       </section>
       </div>
+
+      {scrolled && (
+        <button onClick={backToTop} className="vg-toplink vg-press" aria-label="חזרה למעלה">
+          <ArrowUp size={16} /> למעלה
+        </button>
+      )}
 
       <div className="shrink-0 flex flex-col gap-2">
         <PrimaryButton onClick={onPlay} disabled={c.total === 0} tone={ready ? "ok" : "quiet"}>
