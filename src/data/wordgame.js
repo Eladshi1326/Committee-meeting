@@ -43,148 +43,7 @@ export const RULE_PARTS = [
   { id: "r7", text: "בסוף לוחצים על סיפור חדש והכל מתערבב מחדש. יאללה." },
 ];
 
-// הסיפור. t = טקסט שמופיע על המסך, cat = מקום שמתמלא בהקלטה של מישהו.
-// min = מכמה שחקנים הפרק הזה קיים בכלל, ככה שקבוצה גדולה מקבלת סיפור ארוך יותר.
-const SET_A = {
-  id: "a",
-  title: "הלילה בדירה",
-  chapters: [
-  {
-    min: 1, title: "אחת בלילה",
-    parts: [
-      { t: "השעה הייתה" }, { cat: "num" }, { t: "בלילה כשמישהו דפק בדלת וצעק" }, { cat: "shout" },
-      { t: "היחיד שקם לפתוח היה" }, { who: true },
-      { t: "פתחנו. בחוץ עמד בן אדם. לפי הבגדים, כנראה" }, { cat: "job" },
-      { t: "הוא הסתכל עלינו ואמר מילה אחת:" }, { cat: "curse" },
-    ],
-  },
-  {
-    min: 1, title: "השקית",
-    parts: [
-      { t: "הוא הביא שקית. בשקית היה" }, { cat: "gross" },
-      { t: "וגם משהו שנראה כמו" }, { cat: "food" },
-      { t: "הריח היה" }, { cat: "adj" }, { t: "וזה נכנס לנו לבגדים." },
-      { who: true }, { t: "הריח קודם, ואז הקיא לתוך הכיור בלי להתנצל." },
-      { t: "הוא אמר שזה בשביל" }, { cat: "body" }, { t: "ושאסור לשאול שאלות." },
-    ],
-  },
-  {
-    min: 1, title: "החוקים שלו",
-    parts: [
-      { t: "הוא הכריז על משחק. חוק ראשון:" }, { cat: "verb" },
-      { t: "חוק שני: מי שמפסיד מראה לכולם את" }, { cat: "body2" },
-      { who: true }, { t: "התנגד ואמר לו בפרצוף:" }, { cat: "threat" },
-      { t: "הוא ענה בשקט:" }, { cat: "curse2" },
-    ],
-  },
-  {
-    min: 1, title: "הסיבוב הראשון",
-    parts: [
-      { t: "התחלנו לשחק. הראשון שהפסיד היה" }, { who: true }, { t: "והוא היה חייב להתוודות, אז הוא אמר:" }, { cat: "confess" },
-      { t: "כולם שתקו." }, { who: true }, { t: "לחש" }, { cat: "curse" },
-      { t: "ואז מישהו אחר צעק" }, { cat: "shout" }, { t: "וזה נהיה בלגן." },
-    ],
-  },
-  {
-    min: 1, title: "מה שהיה במקרר",
-    parts: [
-      { t: "בשלב הזה פתחנו את המקרר. בפנים היה" }, { cat: "gross" },
-      { t: "לידו" }, { who: true }, { t: "שם" }, { cat: "object" }, { t: "בלי הסבר, וסגר את הדלת כאילו לא ראינו." },
-      { t: "אמרנו שנזרוק את זה מחר. זה עדיין שם." },
-    ],
-  },
-  {
-    min: 1, title: "החיה",
-    parts: [
-      { t: "ואז נכנס לחדר בעל חיים. זה היה" }, { cat: "animal" },
-      { t: "אף אחד לא ידע של מי הוא. הוא הלך ישר אל" }, { cat: "object" },
-      { t: "ועשה עליו משהו" }, { cat: "adj" },
-      { who: true }, { t: "צילם את זה מכל הזוויות. אנחנו מצטערים על זה עד היום." },
-    ],
-  },
-  {
-    min: 3, title: "השכנה",
-    parts: [
-      { t: "בשעה" }, { cat: "num" }, { t: "השכנה מלמטה עלתה. היא אמרה שהיא שומעת" }, { cat: "gross" },
-      { t: "דרך הרצפה, ושהיא קמה מוקדם כי היא" }, { cat: "job" },
-      { t: "היא הסתכלה ישר על" }, { who: true }, { t: "וצעקה" }, { cat: "curse2" },
-      { t: "הזמנו אותה להיכנס. היא נכנסה. זאת הייתה טעות." },
-    ],
-  },
-  {
-    min: 3, title: "המשחק השני",
-    parts: [
-      { t: "היא הציעה משחק משלה. החוק:" }, { cat: "verb" },
-      { t: "מי שמסרב, שותה וגם נוגע ב" }, { cat: "body" },
-      { t: "של מי שיושב לידו. אף אחד לא סירב." },
-      { t: "אחרי שלושה סיבובים" }, { who: true }, { t: "התוודה מול כולם:" }, { cat: "confess" },
-    ],
-  },
-  {
-    min: 4, title: "הטלפון",
-    parts: [
-      { who: true }, { t: "מצא טלפון על השולחן ופתח אותו. בגלריה היה" }, { cat: "gross" },
-      { t: "ומאתיים תמונות של" }, { cat: "animal" },
-      { t: "בעל הטלפון קם, אמר" }, { cat: "threat" },
-      { t: "ולקח אותו בחזרה. אף אחד לא דיבר על זה יותר." },
-    ],
-  },
-  {
-    min: 4, title: "האוכל",
-    parts: [
-      { t: "התחיל להיות רעב. הזמנו" }, { cat: "food" },
-      { t: "וזה הגיע אחרי" }, { cat: "num" }, { t: "שעות, קר לגמרי." },
-      { t: "מי שהביא את זה נראה" }, { cat: "adj" },
-      { t: "ו" }, { who: true }, { t: "אמר לו" }, { cat: "curse" }, { t: "בטעות, בקול רם, והוא שמע." },
-    ],
-  },
-  {
-    min: 6, title: "המשטרה",
-    parts: [
-      { t: "בשלב הזה הגיעה המשטרה. השוטר שאל מי אחראי, וכולם הצביעו על" }, { cat: "job" },
-      { t: "הוא הסביר בנימוס:" }, { cat: "confess" },
-      { t: "השוטר רשם הכל, הסתכל עלינו ואמר" }, { cat: "curse2" },
-      { t: "ואז הוא לקח" }, { cat: "food" }, { t: "מהשולחן והלך." },
-    ],
-  },
-  {
-    min: 6, title: "הגג",
-    parts: [
-      { t: "עלינו לגג. משם רואים את" }, { cat: "place" },
-      { who: true }, { t: "רצה להוציא את" }, { cat: "body2" }, { t: "ולהשתין מהגג לכיוון הרחוב." },
-      { t: "עצרנו אותו. הוא צעק" }, { cat: "shout" }, { t: "בכל מקרה." },
-    ],
-  },
-  {
-    min: 8, title: "הווידויים",
-    parts: [
-      { t: "בארבע לפנות בוקר ישבנו במעגל. הראשון אמר:" }, { cat: "confess" },
-      { t: "השני אמר:" }, { cat: "confess" },
-      { t: "השלישי היה" }, { who: true }, { t: "והוא לא אמר כלום, רק הרים את החולצה והראה לנו את" }, { cat: "body" },
-      { t: "ואז כולם ידעו יותר מדי אחד על השני." },
-    ],
-  },
-  {
-    min: 8, title: "מי שנעלם",
-    parts: [
-      { t: "ספרנו וגילינו שחסר אחד. חיפשנו אותו ב" }, { cat: "place" },
-      { t: "מצאנו רק" }, { cat: "object" }, { t: "שלו על הרצפה." },
-      { who: true }, { t: "נשבע שהוא ראה אותו הולך ברחוב עם" }, { cat: "animal" },
-      { t: "עד היום הוא לא ענה בקבוצה." },
-    ],
-  },
-  {
-    min: 1, title: "הבוקר שאחרי",
-    parts: [
-      { t: "התעוררנו ב" }, { cat: "place" }, { who: true }, { t: "החזיק ביד" }, { cat: "object" },
-      { t: "ולא ידע למה. על הרצפה היה" }, { cat: "gross" },
-      { t: "וכולנו הסכמנו על דבר אחד: לא מספרים לאף אחד, ובעיקר לא ל" }, { cat: "job" },
-      { t: "סוף." },
-    ],
-  },
-  ],
-};
-
+import { SET_A } from "./wordsets/setA.js";
 import { EXTRA_SETS } from "./wordsets/index.js";
 
 export const STORY_SETS = [SET_A, ...EXTRA_SETS];
@@ -194,9 +53,33 @@ export const CHAPTERS = SET_A.chapters;
 
 export const RECORD_LIMIT = 20;
 
+// ---- קטגוריות שמותר להחליף ביניהן ----
+// מילה נכנסת רק למקום מהקטגוריה שלה. אם נגמרו, מותר רק "קרוב משפחה" שנשמע
+// נכון באותו משפט (עלבון במקום קללה, רעש במקום צעקה). אף פעם לא מספר במקום צעקה.
+export const CAT_GROUPS = [
+  ["curse", "curse2", "insult"],
+  ["body", "body2"],
+  ["shout", "noise"],
+  ["gross", "fluid"],
+  ["object", "clothes"],
+  ["threat", "confess"],
+];
+const GROUP_OF = {};
+CAT_GROUPS.forEach((g, i) => g.forEach((c) => { GROUP_OF[c] = "g" + i; }));
+export function groupOf(cat) { return GROUP_OF[cat] || cat; }
+
+// ---- זכר / נקבה ----
+// בטקסט של הערכות: {זכר|נקבה}. למשל "נשבע{|ה} ש{הוא|היא} מכיר{|ה}".
+// הצורה נבחרת לפי השחקן שהשם שלו הופיע אחרון בפרק.
+const GENDER_RE = /\{([^{}|]*)\|([^{}]*)\}/g;
+export function hasGender(text) { return /\{[^{}|]*\|[^{}]*\}/.test(text || ""); }
+export function genderText(text, g) {
+  return (text || "").replace(GENDER_RE, (_, m, f) => (g === "f" ? f : m));
+}
+
 // ---- בניית מה שצריך להקליט ----
-// roster = [{ id, name }]. ה-id יציב ולא משתנה כשמוחקים שחקן מהאמצע,
-// אחרת ההקלטות של כל מי שאחריו היו נדבקות לאדם הלא נכון.
+// roster = [{ id, name, g }]. ה-id יציב ולא משתנה כשמוחקים שחקן מהאמצע,
+// אחרת ההקלטות של כל מי שאחריו היו נדבקות לאדם הלא נכון. g = "m" | "f".
 
 export function activeRoster(roster, narrator) {
   const r = (roster || []).filter((x) => x && x.id);
@@ -283,26 +166,40 @@ export function nextSetId(setId) {
   return STORY_SETS[(i + 1) % STORY_SETS.length].id;
 }
 
-export function narrTextId(playerId, setId, ci, pi) {
-  return "wg_n_" + playerId + "_" + setId + "_" + ci + "_" + pi;
+export function narrTextId(playerId, setId, ci, pi, g) {
+  const set = getSet(setId);
+  const rev = set && set.rev ? "r" + set.rev : "";
+  return "wg_n_" + playerId + "_" + setId + rev + "_" + ci + "_" + pi + (g ? "_" + g : "");
+}
+
+// אילו מינים יש בין השחקנים הפעילים (בלי המקריא). ברירת מחדל: זכר.
+function gendersIn(roster, narrator) {
+  const gs = new Set(activeRoster(roster, narrator).map((p) => (p.g === "f" ? "f" : "m")));
+  return gs.size ? Array.from(gs).sort() : ["m"];
 }
 
 // כל קטעי הטקסט שהמקריא צריך להקליט: רק פרקים שבכלל יכולים לקרות עם כמות השחקנים הזאת.
+// קטע שיש בו זכר/נקבה מוקלט פעם לכל מין שיש בקבוצה, כי לא יודעים מראש איזה שם ייפול שם.
 export function narratorTasks(roster, narrator, setId) {
   const me = (roster || [])[narrator];
   const set = getSet(setId);
   if (!me || !set) return [];
   const n = Math.max(1, activeRoster(roster, narrator).length);
+  const genders = gendersIn(roster, narrator);
   const out = [];
+  const hint = "תקריא בדיוק ככה, כמו מספר סיפורים. בלי לנחש מה בא לפני ואחרי.";
   set.chapters.forEach((c, ci) => {
     if (n < c.min) return;
     c.parts.forEach((p, pi) => {
       if (!p.t || !p.t.trim()) return;
-      out.push({
-        id: narrTextId(me.id, set.id, ci, pi),
-        kind: "narr", cat: "narr", speaker: "narr",
-        text: p.t, hint: "תקריא בדיוק ככה, כמו מספר סיפורים. בלי לנחש מה בא לפני ואחרי.", label: "קטע מהסיפור",
-      });
+      if (!hasGender(p.t)) {
+        out.push({ id: narrTextId(me.id, set.id, ci, pi), kind: "narr", cat: "narr", speaker: "narr", text: p.t, hint, label: "קטע מהסיפור" });
+        return;
+      }
+      genders.forEach((g) => out.push({
+        id: narrTextId(me.id, set.id, ci, pi, g), kind: "narr", cat: "narr", speaker: "narr",
+        text: genderText(p.t, g), hint, label: g === "f" ? "קטע מהסיפור · על בחורה" : "קטע מהסיפור · על בחור",
+      }));
     });
   });
   return out;
@@ -325,9 +222,16 @@ function seeded(seed) {
   };
 }
 
+// כמה מקומות מכל משפחת קטגוריות פרק דורש
+function chapterDemand(c) {
+  const d = {};
+  c.parts.forEach((p) => { if (p.cat) { const g = groupOf(p.cat); d[g] = (d[g] || 0) + 1; } });
+  return d;
+}
+
 // בוחר ערכה, ממלא כל מקום בהקלטה של מישהו, ומשבץ שמות אמיתיים.
-// שלושה כללים: אף הקלטה לא נשמעת פעמיים, מי שנשמע הכי מעט מקבל עדיפות,
-// והמקריא בחוץ — הוא לא מופיע בסיפור, רק מספר אותו.
+// הכללים: מילה נכנסת רק למקום מהקטגוריה שלה (או קרוב משפחה), אף הקלטה לא נשמעת
+// פעמיים, מי שנשמע הכי מעט מקבל עדיפות, והמקריא בחוץ — הוא לא מופיע בסיפור, רק מספר אותו.
 // setId = הערכה שננעלה בשביל המקריא. בלי מקריא הערכה מוגרלת מחדש בכל סיפור.
 export function buildStory(roster, recordings, seed, narrator, setId) {
   const all = (roster || []).filter((x) => x && x.id);
@@ -348,39 +252,53 @@ export function buildStory(roster, recordings, seed, narrator, setId) {
   const rolled = STORY_SETS[Math.floor(rnd() * STORY_SETS.length)] || STORY_SETS[0];
   const set = getSet(setId) || rolled;
 
+  // מאגר לכל קטגוריה, ומאגר לכל משפחה
   const pools = {};
+  const groupPools = {};
   WORD_PROMPTS.forEach((w) => {
     const ids = [];
     act.forEach((pl) => {
       const id = wordRecId(pl.id, w.id);
-      if (recordings[id]) ids.push({ id, player: pl.id, name: pl.name });
+      if (recordings[id]) ids.push({ id, player: pl.id, name: pl.name, cat: w.id });
     });
     pools[w.id] = shuffle(ids);
+    const g = groupOf(w.id);
+    groupPools[g] = (groupPools[g] || []).concat(pools[w.id]);
   });
 
   const heard = {};
   const named = {};
   act.forEach((pl) => { heard[pl.id] = 0; named[pl.id] = 0; });
-
-  const allRecs = [];
-  WORD_PROMPTS.forEach((w) => (pools[w.id] || []).forEach((r) => allRecs.push(r)));
   const usedIds = new Set();
 
-  const take = (cat) => {
-    let list = (pools[cat] || []).filter((r) => !usedIds.has(r.id));
-    let borrowed = false;
-    if (!list.length) { list = allRecs.filter((r) => !usedIds.has(r.id)); borrowed = true; }
-    if (!list.length) { list = (pools[cat] && pools[cat].length) ? pools[cat] : allRecs; }
-    if (!list.length) return null;
+  const pickLeastHeard = (list) => {
     let best = 0;
     for (let i = 1; i < list.length; i++) {
       if (heard[list[i].player] < heard[list[best].player]) best = i;
       else if (heard[list[i].player] === heard[list[best].player] && rnd() < 0.35) best = i;
     }
-    const pick = list[best];
-    usedIds.add(pick.id);
-    heard[pick.player]++;
-    return { ...pick, borrowed };
+    return list[best];
+  };
+
+  // סדר עדיפויות: אותה קטגוריה שעוד לא נשמעה → קרוב משפחה שעוד לא נשמע →
+  // אותה קטגוריה שוב → קרוב משפחה שוב. אף פעם לא קטגוריה זרה.
+  const take = (cat) => {
+    const g = groupOf(cat);
+    const fresh = (list) => (list || []).filter((r) => !usedIds.has(r.id));
+    const tries = [
+      { list: fresh(pools[cat]), borrowed: false, repeat: false },
+      { list: fresh(groupPools[g]), borrowed: true, repeat: false },
+      { list: pools[cat] || [], borrowed: false, repeat: true },
+      { list: groupPools[g] || [], borrowed: true, repeat: true },
+    ];
+    for (const t of tries) {
+      if (!t.list.length) continue;
+      const pick = pickLeastHeard(t.list);
+      usedIds.add(pick.id);
+      heard[pick.player]++;
+      return { ...pick, borrowed: t.borrowed && pick.cat !== cat, repeat: t.repeat };
+    }
+    return null;
   };
 
   const takeName = () => {
@@ -388,39 +306,61 @@ export function buildStory(roster, recordings, seed, narrator, setId) {
     act.forEach((pl) => { if (named[pl.id] < named[best.id]) best = pl; });
     named[best.id]++;
     const rid = wordRecId(best.id, "myname");
-    return { name: best.name, player: best.id, recId: recordings[rid] ? rid : null };
+    return { name: best.name, player: best.id, g: best.g === "f" ? "f" : "m", recId: recordings[rid] ? rid : null };
   };
 
-  // אף מילה לא חוזרת: אם אין מספיק הקלטות, מקצרים את הסיפור
-  // שומרים את המיקום המקורי בערכה, כי ההקלטות של המקריא נשמרות לפי פרק ומקום.
-  let chapters = set.chapters.map((c, ci) => ({ ...c, ci })).filter((c) => n >= c.min);
-  const budget = allRecs.length;
-  let spent = 0;
-  const fitted = [];
-  for (const c of chapters) {
-    const need = c.parts.filter((x) => x.cat).length;
-    if (spent + need > budget && fitted.length) break;
-    fitted.push(c);
-    spent += need;
-  }
-  chapters = fitted;
+  // בחירת פרקים: רק פרקים שמתאימים לכמות השחקנים, ורק כאלה שיש להם מספיק
+  // הקלטות מהקטגוריות הנכונות — ככה אף מילה לא חוזרת ואף מילה לא נכנסת למקום זר.
+  // פרק הסיום שמור מראש, כדי שלסיפור תמיד יהיה סוף.
+  const capacity = {};
+  Object.keys(groupPools).forEach((g) => { capacity[g] = groupPools[g].length; });
+  const fits = (d) => Object.keys(d).every((g) => (capacity[g] || 0) >= d[g]);
+  const spend = (d) => Object.keys(d).forEach((g) => { capacity[g] = (capacity[g] || 0) - d[g]; });
 
-  const built = chapters.map((c) => ({
-    title: c.title,
-    parts: c.parts.map((p, pi) => {
-      if (p.who) { const w = takeName(); return { text: w.name, isName: true, player: w.player, recId: w.recId }; }
-      if (!p.cat) {
-        const nid = reader ? narrTextId(reader.id, set.id, c.ci, pi) : null;
-        if (nid && recordings[nid]) return { text: p.t, recId: nid, narr: true };
-        return { text: p.t };
-      }
-      const prompt = WORD_PROMPTS.find((w) => w.id === p.cat);
-      const label = (prompt && prompt.label) || p.cat;
-      const pick = take(p.cat);
-      if (!pick) return { slot: p.cat, label, missing: true };
-      return { slot: p.cat, label, recId: pick.id, player: pick.player, borrowed: !!pick.borrowed };
-    }),
-  }));
+  const eligible = set.chapters.map((c, ci) => ({ ...c, ci })).filter((c) => n >= c.min);
+  const ending = eligible.length > 1 ? eligible[eligible.length - 1] : null;
+  const middle = ending ? eligible.slice(0, -1) : eligible;
+  let endingFits = false;
+  if (ending) {
+    const d = chapterDemand(ending);
+    endingFits = fits(d);
+    if (endingFits) spend(d);
+  }
+  const chosen = [];
+  middle.forEach((c) => {
+    const d = chapterDemand(c);
+    if (fits(d)) { chosen.push(c); spend(d); }
+  });
+  if (ending) chosen.push(ending);
+  // כמעט אין הקלטות? עדיף סיפור עם חזרות מאשר בלי סיפור
+  if (!chosen.length && eligible.length) chosen.push(eligible[0]);
+  const chapters = chosen;
+
+  const built = chapters.map((c) => {
+    let curG = "m"; // המין של השם האחרון שהופיע בפרק — קובע זכר/נקבה בטקסט שאחריו
+    return {
+      title: c.title,
+      parts: c.parts.map((p, pi) => {
+        if (p.who) {
+          const w = takeName();
+          curG = w.g;
+          return { text: w.name, isName: true, player: w.player, recId: w.recId };
+        }
+        if (!p.cat) {
+          const gendered = hasGender(p.t);
+          const text = gendered ? genderText(p.t, curG) : p.t;
+          const nid = reader ? narrTextId(reader.id, set.id, c.ci, pi, gendered ? curG : null) : null;
+          if (nid && recordings[nid]) return { text, recId: nid, narr: true };
+          return { text };
+        }
+        const prompt = WORD_PROMPTS.find((w) => w.id === p.cat);
+        const label = (prompt && prompt.label) || p.cat;
+        const pick = take(p.cat);
+        if (!pick) return { slot: p.cat, label, missing: true };
+        return { slot: p.cat, label, recId: pick.id, player: pick.player, borrowed: !!pick.borrowed, repeat: !!pick.repeat };
+      }),
+    };
+  });
   built.setTitle = set.title;
   built.setId = set.id;
   return built;

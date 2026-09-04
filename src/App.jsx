@@ -199,8 +199,9 @@ export default function App() {
   const roster = useMemo(() => {
     const names = settings.players || [];
     const ids = settings.playerIds || [];
-    return names.map((name, i) => ({ id: ids[i] || "p" + i, name }));
-  }, [settings.players, settings.playerIds]);
+    const gs = settings.playerGenders || [];
+    return names.map((name, i) => ({ id: ids[i] || "p" + i, name, g: gs[i] === "f" ? "f" : "m" }));
+  }, [settings.players, settings.playerIds, settings.playerGenders]);
 
   const newWordStory = useCallback(() => {
     setSettings((prev) => {
@@ -235,12 +236,13 @@ export default function App() {
 
   // names מגיע כמערך של { id, name } כדי שמחיקה מהאמצע לא תזיז הקלטות
   const setParty = useCallback((entries, mode) => {
-    const list = (entries || []).map((e) => (typeof e === "string" ? { id: freshId(), name: e } : e));
+    const list = (entries || []).map((e) => (typeof e === "string" ? { id: freshId(), name: e, g: "m" } : e));
     setSettings((prev) => {
       const next = {
         ...prev,
         players: list.map((e) => e.name),
         playerIds: list.map((e) => e.id),
+        playerGenders: list.map((e) => (e.g === "f" ? "f" : "m")),
         splitMode: mode,
         splitSeed: newSeed(),
       };
@@ -492,6 +494,7 @@ export default function App() {
             roster={roster}
             narrator={narratorIdx}
             setId={wordSetId}
+            speed={settings.textSpeed || 1}
             recordings={recordings}
             seed={settings.wordSeed || 1}
             onNewStory={newWordStory}

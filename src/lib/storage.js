@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS = {
   mode: "story",         // "story" = סיפור כתוב, "words" = סיפור מהמילים שלכם
   narrator: -1,          // מי מקריא את הסיפור בקול. -1 = אין מקריא
   wordSetId: null,       // הערכה שננעלה בשביל המקריא (הוא מקליט את כל הטקסטים שלה)
+  playerGenders: [],     // "m" / "f" לכל שחקן — קובע זכר/נקבה בטקסט של משחק המילים
+  textSpeed: 1,          // קצב הטקסט בסיפור מהמילים: 1.4 איטי, 1 רגיל, 0.7 מהיר
 };
 
 let dbPromise = null;

@@ -6,32 +6,40 @@ import { RULE_PARTS, buildStory, ruleRecId, activeRoster } from "../data/wordgam
 
 // כמה זמן להשאיר טקסט על המסך כדי שאפשר יהיה לקרוא אותו בנחת.
 // קצב קבוע לא עובד: משפט של 60 תווים צריך יותר זמן מאחד של 12.
-function readMs(text) {
+// speed = מכפיל מההגדרות: 1 רגיל, קטן מ-1 מהיר יותר, גדול מ-1 איטי יותר.
+function readMs(text, speed) {
   const len = (text || "").trim().length;
-  if (len < 4) return 700;
-  return Math.max(1800, Math.min(7000, 1300 + len * 75));
+  const k = speed || 1;
+  if (len < 4) return 500 * k;
+  return Math.round(Math.max(1100, Math.min(4200, 800 + len * 45)) * k);
 }
 
-const PAGE_CHARS = 230;     // פרק ארוך מזה נחלק לשני עמודים, שלא ייווצר קיר של טקסט
-const CHAPTER_BREATH = 900; // נשימה בתחילת פרק, שהשם הראשון לא יישמע ברגע שהעמוד מתחלף
-const PAGE_BREATH = 450;
-const POP_MS = 550;         // הנקודות הצהובות קופצות, ורק אז המילה נשמעת
-const AFTER_WORD = 300;     // רגע אחרי כל מילה לפני שהטקסט ממשיך
-const CHAPTER_HOLD = 1100;  // בסוף פרק משאירים אותו על המסך רגע לפני שעוברים הלאה
+const PAGE_CHARS = 320;     // פרק ארוך מזה נחלק לעמודים, שלא ייווצר קיר של טקסט
+const CHAPTER_BREATH = 650; // נשימה בתחילת פרק, שהשם הראשון לא יישמע ברגע שהעמוד מתחלף
+const PAGE_BREATH = 350;
+const POP_MS = 450;         // הנקודות הצהובות קופצות, ורק אז המילה נשמעת
+const AFTER_WORD = 200;     // רגע אחרי כל מילה לפני שהטקסט ממשיך
+const CHAPTER_HOLD = 800;   // בסוף פרק משאירים אותו על המסך רגע לפני שעוברים הלאה
 
 function weight(p) { return p.slot ? 5 : (p.text || "").length; }
 
-// הטקסט מצטבר בתוך הפרק, חתיכה אחרי חתיכה. רק פרק ארוך במיוחד נשבר לעמוד נוסף,
-// ואף פעם לא לפני מילה מוקלטת — הטקסט שלפניה מוביל אליה.
+// הטקסט מצטבר בתוך הפרק, חתיכה אחרי חתיכה. רק פרק ארוך במיוחד נשבר לעמודים,
+// והחיתוך נעשה במקום הכי מאוזן שמותר: לפני קטע טקסט, לא אחרי שם ולא אחרי
+// אות בודדת, ואף פעם לא לפני מילה מוקלטת — הטקסט שלפניה מוביל אליה.
 function toPages(parts) {
+  const total = parts.reduce((a, p) => a + weight(p), 0);
+  if (total <= PAGE_CHARS) return [parts];
+  const target = Math.ceil(total / Math.ceil(total / PAGE_CHARS));
   const pages = [];
   let cur = [];
   let len = 0;
-  parts.forEach((p) => {
+  parts.forEach((p, i) => {
     const prev = cur[cur.length - 1];
     const prevShort = !!(prev && prev.text && !prev.isName && prev.text.trim().length < 4);
-    const canBreak = !p.slot && !prevShort && cur.length >= 3;
-    if (canBreak && len + weight(p) > PAGE_CHARS) { pages.push(cur); cur = []; len = 0; }
+    const prevName = !!(prev && prev.isName);
+    const rest = parts.slice(i).reduce((a, q) => a + weight(q), 0);
+    const canBreak = !p.slot && !p.isName && !prevShort && !prevName && cur.length >= 3 && rest >= 60;
+    if (canBreak && len + weight(p) > target) { pages.push(cur); cur = []; len = 0; }
     cur.push(p);
     len += weight(p);
   });
@@ -39,7 +47,7 @@ function toPages(parts) {
   return pages;
 }
 
-export default function WordPlay({ roster, recordings, seed, onNewStory, onExit, audioRef, narrator, setId }) {
+export default function WordPlay({ roster, recordings, seed, onNewStory, onExit, audioRef, narrator, setId, speed }) {
   const players = (roster || []).map((r) => r.name);
   const readerName = narrator >= 0 && roster && roster[narrator] ? roster[narrator].name : null;
   const [phase, setPhase] = useState("intro"); // intro | rules | story | end
@@ -104,7 +112,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
 
     if (phase === "rules") {
       const r = rule ? recordings[rule.recId] : null;
-      const hold = readMs(rule ? rule.text : "");
+      const hold = readMs(rule ? rule.text : "", speed);
       if (r && a) stop = playRec(a, r, () => later(finish, AFTER_WORD), () => later(finish, hold), () => later(finish, hold));
       else later(finish, hold);
     } else if (part && page) {
@@ -112,10 +120,10 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
       const breath = first ? (page.k === 0 ? CHAPTER_BREATH : PAGE_BREATH) : 0;
       const lastOnPage = pi === page.parts.length - 1;
       const lastInChapter = lastOnPage && page.k === page.n - 1;
-      const tail = AFTER_WORD + (lastInChapter ? CHAPTER_HOLD : lastOnPage ? 500 : 0);
+      const tail = AFTER_WORD + (lastInChapter ? CHAPTER_HOLD : lastOnPage ? 350 : 0);
       const r = part.recId && !part.missing ? recordings[part.recId] : null;
       const isWord = !!(part.slot || part.isName);
-      const hold = part.isName ? 1500 : part.missing ? 1600 : readMs(part.text);
+      const hold = part.isName ? 1100 : part.missing ? 1400 : readMs(part.text, speed);
       if (r && a) {
         // טקסט: שומעים את המקריא. מילה: קודם הנקודות קופצות, ורק אז שומעים.
         const onEnd = () => { setSpeaking(false); later(finish, tail); };
@@ -272,9 +280,15 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
                 <span className={last ? "vg-pop inline-block" : "inline-block"} style={{ color: T.ok, fontWeight: 800, margin: "0 2px" }}>{p.text}</span>{" "}
               </React.Fragment>
             );
-            if (p.text) return (
-              <span key={k} className={last ? "vg-fade" : ""} style={{ color: last ? T.ink : T.muted }}>{p.text} </span>
-            );
+            if (p.text) {
+              // "נוגע ב" + מילה מוקלטת: מדביקים את האות עם מקף, שלא תרחף לבד
+              const t = p.text.trim();
+              const glue = /־$/.test(t) || /(^|\s)[בלמוכשה]$/.test(t);
+              const shown = glue && !/־$/.test(t) ? t + "־" : t;
+              return (
+                <span key={k} className={last ? "vg-fade" : ""} style={{ color: last ? T.ink : T.muted }}>{shown}{glue ? "" : " "}</span>
+              );
+            }
             const missing = p.missing || !recordings[p.recId];
             return (
               <React.Fragment key={k}>

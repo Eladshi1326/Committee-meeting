@@ -64,6 +64,28 @@ export default function MoreScreen({
           label="טקסט בלבד"
           hint="בלי קול בכלל. השורות מתחלפות לפי אורך הטקסט."
         />
+        <div className="py-3">
+          <div className="text-sm" style={{ color: T.ink }}>קצב הטקסט בסיפור מהמילים</div>
+          <div className="text-xs mt-0.5 leading-relaxed" style={{ color: T.dim }}>
+            כמה זמן משפט נשאר על המסך לפני שממשיכים. קטע שהמקריא הקליט הולך לפי הקול שלו בכל מקרה.
+          </div>
+          <div className="mt-2 flex gap-1.5">
+            {[["1.4", "איטי"], ["1", "רגיל"], ["0.7", "מהיר"]].map(([v, label]) => {
+              const cur = String(settings.textSpeed || 1);
+              const on = cur === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => onSetSetting("textSpeed", Number(v))}
+                  className="vg-press rounded-full px-3.5 py-1.5 text-xs font-bold"
+                  style={{ background: on ? T.lamp : T.raised, color: on ? T.onLamp : T.muted, border: "1px solid " + (on ? T.lamp : T.line) }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </Section>
 
       <Section title="שחקנים">

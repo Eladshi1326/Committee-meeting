@@ -37,10 +37,19 @@ function newId() {
   return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+// ניחוש ראשוני של זכר/נקבה לפי השם. השחקן יכול להחליף בהקשה. זה קובע איך
+// הסיפור מדבר עליו: "אלעד נשבע" מול "מיכל נשבעה".
+const MALE_NAMES = ["משה", "יהודה", "אריה", "שלמה", "עובדיה", "נחמיה", "ירמיה", "זכריה", "אליה", "יונה", "עוזיה", "נתנאל", "אמת"];
+function guessGender(name) {
+  const n = (name || "").trim();
+  if (!n || MALE_NAMES.includes(n)) return "m";
+  return /[הת]$/.test(n) ? "f" : "m";
+}
+
 function PlayersStep({ roster, splitMode, onDone, adultUnlocked, onUnlockAdult }) {
   // כל שחקן נושא מזהה יציב, כדי שמחיקה מהאמצע לא תזיז הקלטות של אחרים
   const [names, setNames] = useState(
-    (roster && roster.length) ? roster.map((r) => ({ ...r })) : [{ id: newId(), name: "" }]
+    (roster && roster.length) ? roster.map((r) => ({ ...r, g: r.g === "f" ? "f" : "m", gSet: true })) : [{ id: newId(), name: "", g: "m" }]
   );
   const [mode, setMode] = useState(splitMode || "line");
   const [bump, setBump] = useState(0);
@@ -77,7 +86,7 @@ function PlayersStep({ roster, splitMode, onDone, adultUnlocked, onUnlockAdult }
   }
 
   function next() {
-    const clean = names.map((e, i) => ({ id: e.id, name: (e.name || "").trim() || "שחקן " + (i + 1) }));
+    const clean = names.map((e, i) => ({ id: e.id, name: (e.name || "").trim() || "שחקן " + (i + 1), g: e.g === "f" ? "f" : "m" }));
     onDone(count > 1 ? clean : [], mode);
   }
 
@@ -174,11 +183,20 @@ function PlayersStep({ roster, splitMode, onDone, adultUnlocked, onUnlockAdult }
               </div>
               <input
                 value={e.name}
-                onChange={(ev) => setNames((p) => p.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))}
+                onChange={(ev) => setNames((p) => p.map((x, j) => (j === i ? { ...x, name: ev.target.value, g: x.gSet ? x.g : guessGender(ev.target.value) } : x)))}
                 placeholder={"שחקן " + (i + 1)}
                 className="flex-1 min-w-0 rounded-xl px-3 py-2 text-base outline-none"
                 style={{ background: T.bg, color: T.ink, border: "1px solid " + T.line }}
               />
+              <button
+                onClick={() => setNames((p) => p.map((x, j) => (j === i ? { ...x, g: x.g === "f" ? "m" : "f", gSet: true } : x)))}
+                className="vg-press shrink-0 h-8 rounded-full px-2.5 text-xs font-bold"
+                style={{ background: T.raised, color: e.g === "f" ? "#f2a5c7" : "#8ec5ff", border: "1px solid " + T.line }}
+                aria-label={(e.g === "f" ? "היא" : "הוא") + " — להחליף"}
+                title="זכר או נקבה? קובע איך הסיפור מדבר על השחקן"
+              >
+                {e.g === "f" ? "היא" : "הוא"}
+              </button>
               <button
                 onClick={() => removeAt(i)}
                 disabled={names.length <= 1}
