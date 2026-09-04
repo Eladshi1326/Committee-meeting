@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS = {
   wordSeed: 0,           // הזרע של משחק המילים
   skipSilence: true,     // לדלג על השקט בהתחלה ובסוף של כל הקלטה
   mode: "story",         // "story" = סיפור כתוב, "words" = סיפור מהמילים שלכם
+  narrator: -1,          // מי מקריא את הסיפור בקול. -1 = אין מקריא
 };
 
 let dbPromise = null;

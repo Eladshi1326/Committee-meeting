@@ -348,6 +348,7 @@ export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
   setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap, mode, onSetMode, introFor,
+  narrator, onSetNarrator,
   wordProgress, wordTasksFor, wordTaskCount, onWordStudio, onWordPlay,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
@@ -494,6 +495,35 @@ export default function HomeScreen({
             </>
           )}
         </div>
+
+        {party && (
+          <section className="shrink-0 rounded-3xl px-4 py-3" style={{ background: T.surface, border: "1px solid " + T.line }}>
+            <Toggle
+              on={narrator >= 0}
+              onChange={(v) => onSetNarrator(v ? 0 : -1)}
+              label="מקריא הסיפור"
+              hint="הסיפור עצמו כתוב על המסך ולכן שקט. מי שנבחר מקריא אותו בקול, והטקסט מחכה לו במקום להתקדם לבד. המילים המוקלטות מתנגנות כרגיל."
+            />
+            {narrator >= 0 && (
+              <div className="flex flex-wrap gap-1.5 pb-2">
+                {players.map((name, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onSetNarrator(i)}
+                    className="vg-press rounded-full px-3 py-1.5 text-xs font-bold"
+                    style={{
+                      background: narrator === i ? T.lamp : T.raised,
+                      color: narrator === i ? T.onLamp : T.muted,
+                      border: "1px solid " + (narrator === i ? T.lamp : T.line),
+                    }}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="shrink-0 flex flex-col gap-2">
           {party && (

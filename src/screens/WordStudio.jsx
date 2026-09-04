@@ -24,7 +24,12 @@ function shuffled(arr, seed) {
 }
 
 export default function WordStudio({ tasks, playerName, playerIndex, recordings, onSave, onDelete, onHome, audioRef }) {
-  const list = useMemo(() => shuffled(tasks, 1013 + playerIndex * 7919), [tasks, playerIndex]);
+  // "תגיד את השם שלך" תמיד ראשון — זה לא חלק מהעיוורון. השאר מעורבב.
+  const list = useMemo(() => {
+    const name = tasks.filter((t) => t.kind === "name");
+    const rest = tasks.filter((t) => t.kind !== "name");
+    return [...name, ...shuffled(rest, 1013 + playerIndex * 7919)];
+  }, [tasks, playerIndex]);
   const [i, setI] = useState(0);
   const [state, setState] = useState("idle"); // idle | prep | recording | saving
   const [secs, setSecs] = useState(0);

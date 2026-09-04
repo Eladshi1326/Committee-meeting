@@ -426,6 +426,7 @@ export default function App() {
           <WordPlay
             playerCount={Math.max(2, players.length)}
             players={players}
+            narrator={typeof settings.narrator === "number" ? settings.narrator : -1}
             recordings={recordings}
             seed={settings.wordSeed || 1}
             onNewStory={newWordStory}
@@ -481,6 +482,8 @@ export default function App() {
             onSetParty={setParty}
             mode={settings.mode || "story"}
             onSetMode={(m) => setSetting("mode", m)}
+            narrator={typeof settings.narrator === "number" ? settings.narrator : -1}
+            onSetNarrator={(i) => setSetting("narrator", i)}
             setupDone={!!settings.setupDone}
             onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}

@@ -6,8 +6,32 @@ import { RULE_PARTS, buildStory, ruleRecId } from "../data/wordgame.js";
 
 // כמה זמן להשאיר חתיכה בלי הקלטה על המסך
 const TEXT_MS = 2200;
+const MAX_TEXT = 90; // טקסט ארוך מזה נשבר לפעימה נפרדת, שלא יהיה קיר של מילים
 
-export default function WordPlay({ playerCount, players, recordings, seed, onNewStory, onExit, audioRef }) {
+// חותך פרק לפעימות: כל פעימה היא קצת טקסט והמילה המוקלטת שאחריו.
+function toBeats(parts) {
+  const beats = [];
+  let cur = [];
+  let len = 0;
+  parts.forEach((p) => {
+    if (p.recId || p.slot) {
+      cur.push(p);
+      beats.push(cur);
+      cur = [];
+      len = 0;
+      return;
+    }
+    const t = p.text || "";
+    if (len + t.length > MAX_TEXT && cur.length) { beats.push(cur); cur = []; len = 0; }
+    cur.push(p);
+    len += t.length;
+  });
+  if (cur.length) beats.push(cur);
+  return beats;
+}
+
+export default function WordPlay({ playerCount, players, recordings, seed, onNewStory, onExit, audioRef, narrator }) {
+  const readerName = narrator >= 0 && players && players[narrator] ? players[narrator] : null;
   const [phase, setPhase] = useState("intro"); // intro | rules | story | end
   const [ri, setRi] = useState(0);
   const [ci, setCi] = useState(0);
@@ -17,7 +41,9 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
   const rules = useMemo(() => RULE_PARTS.map((r, i) => ({ ...r, recId: ruleRecId(r.id), player: i % Math.max(1, playerCount) })), [playerCount]);
 
   const chapter = story[ci] || null;
-  const part = chapter ? chapter.parts[pi] || null : null;
+  const beats = useMemo(() => (chapter ? toBeats(chapter.parts) : []), [chapter]);
+  const beat = beats[pi] || null;
+  const part = beat ? (beat.find((x) => x.recId) || beat[beat.length - 1]) : null;
   const rule = rules[ri] || null;
 
   function stopAudio() {
@@ -33,7 +59,7 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
     }
     if (phase === "story") {
       if (!chapter) { setPhase("end"); return; }
-      if (pi + 1 < chapter.parts.length) setPi(pi + 1);
+      if (pi + 1 < beats.length) setPi(pi + 1);
       else if (ci + 1 < story.length) { setCi(ci + 1); setPi(0); }
       else setPhase("end");
     }
@@ -52,6 +78,8 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
     const finish = () => { if (cancelled) return; cancelled = true; advance(); };
     if (r && a) {
       stop = playRec(a, r, finish, finish, finish);
+    } else if (readerName && phase === "story") {
+      // יש מקריא: הטקסט מחכה שהוא יסיים להקריא, לא לשעון
     } else {
       timer = setTimeout(finish, TEXT_MS);
     }
@@ -64,6 +92,8 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
   }, [phase, ri, ci, pi]);
 
   useEffect(() => () => stopAudio(), []);
+
+  const waitingForReader = !!readerName && phase === "story" && part && !part.recId;
 
   const shell = (children) => (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -89,6 +119,12 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
           כל אחד מכם הקליט מילים בלי לדעת לאן הן הולכות. עכשיו הטלפון מרכיב מהן סיפור.
           קודם תשמעו את כולכם מסבירים את החוקים, ואז מתחילים.
         </p>
+        {readerName && (
+          <div className="mt-3 rounded-2xl px-4 py-3 text-sm leading-relaxed" style={{ background: T.lamp + "1a", border: "1px solid " + T.lamp + "66", color: T.ink }}>
+            <span style={{ color: T.lamp, fontWeight: 700 }}>{readerName}</span> מקריא את הסיפור בקול.
+            הטקסט מחכה לך — תקריא, ואז תקיש כדי להמשיך. המילים המוקלטות מתנגנות לבד.
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap gap-1.5">
           {(players || []).map((n, i) => (
             <span key={i} className="text-xs rounded-full px-2.5 py-1" style={{ background: T.lamp + "22", color: T.lamp, border: "1px solid " + T.lamp + "55" }}>{n}</span>
@@ -170,44 +206,37 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
   }
 
   // --- story ---
-  const shownSoFar = chapter ? chapter.parts.slice(0, pi + 1) : [];
   const who = part && part.player != null ? (players && players[part.player]) || "מישהו" : null;
   return shell(
     <>
       <div onClick={advance} className="flex-1 vg-scroll flex flex-col justify-center px-5 py-6 select-none">
-        <div className="text-xs mb-3" style={{ color: T.dim }}>{chapter ? chapter.title : ""}</div>
-        <p className="text-2xl leading-relaxed">
-          {shownSoFar.map((p, k) => {
-            const last = k === shownSoFar.length - 1;
-            if (p.isName) return (
-              <span key={k} className={last ? "vg-pop inline-block" : "inline-block"} style={{ color: T.ok, fontWeight: 800, margin: "0 2px" }}>{p.text} </span>
-            );
-            if (p.text) return <span key={k} style={{ color: last ? T.ink : T.muted }}>{p.text} </span>;
+        <div className="text-xs mb-3" style={{ color: T.dim }}>
+          {chapter ? chapter.title : ""} · {pi + 1}/{beats.length}
+        </div>
+        <p key={ci + "-" + pi} className="vg-rise text-3xl leading-snug font-medium">
+          {(beat || []).map((p, k) => {
+            if (p.isName) return <span key={k} style={{ color: T.ok, fontWeight: 800 }}>{p.text} </span>;
+            if (p.text) return <span key={k} style={{ color: T.ink }}>{p.text} </span>;
             const missing = p.missing || !recordings[p.recId];
             return (
               <span
                 key={k}
-                className={last ? "vg-pop inline-block" : "inline-block"}
-                style={{
-                  color: missing ? T.rec : last ? T.lamp : T.lamp + "bb",
-                  fontWeight: 700,
-                  borderBottom: "2px solid " + (missing ? T.rec : T.lamp) + "66",
-                  margin: "0 3px",
-                }}
+                className="vg-pop inline-block"
+                style={{ color: missing ? T.rec : T.lamp, fontWeight: 800, borderBottom: "3px solid " + (missing ? T.rec : T.lamp) + "66", margin: "0 4px" }}
               >
                 {missing ? "[" + p.label + " — חסר]" : "●●●"}
               </span>
             );
           })}
         </p>
-        {part && part.slot && !part.missing && (
-          <div className="mt-5 flex items-center gap-2 text-sm" style={{ color: T.lamp }}>
-            <Volume2 size={16} className="vg-blink" /> {who} אמר את זה
+        {part && (part.recId || part.slot) && !part.missing && who && (
+          <div className="mt-6 flex items-center gap-2 text-sm" style={{ color: part.isName ? T.ok : T.lamp }}>
+            <Volume2 size={16} className="vg-blink" /> {who}
           </div>
         )}
       </div>
-      <div className="shrink-0 px-4 pb-5 text-center text-xs" style={{ color: T.dim }}>
-        הקשה על המסך מדלגת קדימה
+      <div className="shrink-0 px-4 pb-5 text-center text-xs" style={{ color: waitingForReader ? T.lamp : T.dim }}>
+        {waitingForReader ? readerName + " מקריא — הקש כשסיימת" : "הקשה על המסך מדלגת קדימה"}
       </div>
     </>
   );

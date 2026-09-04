@@ -3,6 +3,10 @@
 // אף אחד לא יודע לאן המילה שלו הולכת, וזו כל הבדיחה.
 // יש כמה ערכות סיפור, ובכל משחק נבחרת אחת באקראי.
 
+// כל שחקן מקליט את השם שלו. זה מנוגן בכל פעם שהשם שלו מופיע בסיפור,
+// אז שומעים מי זה ולא רק קוראים.
+export const NAME_PROMPT = { id: "myname", label: "השם שלך", prompt: "תגיד את השם שלך. רק את השם.", hint: "בקול ברור" };
+
 export const WORD_PROMPTS = [
   { id: "curse",   label: "קללה",        prompt: "תגיד קללה. מילה אחת, הכי גסה שיש לך.", hint: "מילה אחת" },
   { id: "curse2",  label: "עוד קללה",    prompt: "תגיד קללה אחרת. יותר גרועה מהקודמת.", hint: "מילה אחת" },
@@ -17,6 +21,10 @@ export const WORD_PROMPTS = [
   { id: "object",  label: "חפץ בבית",    prompt: "תגיד חפץ שיש לך בבית.", hint: "מילה אחת" },
   { id: "place",   label: "מקום",        prompt: "תגיד מקום.", hint: "מילה אחת" },
   { id: "food",    label: "אוכל",        prompt: "תגיד אוכל.", hint: "מילה אחת" },
+  { id: "fluid",   label: "נוזל",        prompt: "תגיד נוזל. כל נוזל.", hint: "מילה אחת" },
+  { id: "insult",  label: "עלבון",       prompt: "תגיד עלבון. איך קוראים למישהו שאתה לא סובל.", hint: "מילה אחת" },
+  { id: "clothes", label: "בגד",         prompt: "תגיד פריט לבוש.", hint: "מילה אחת" },
+  { id: "noise",   label: "רעש",         prompt: "תעשה רעש בפה. לא מילה, רעש.", hint: "צליל, לא מילה" },
   { id: "shout",   label: "קריאה",       prompt: "תצעק משהו. קריאה, לא משפט.", hint: "יאללה! וואלה! אוי!" },
   { id: "threat",  label: "איום",        prompt: "תגיד איום קצר. משפט אחד.", hint: "משפט קצר" },
   { id: "confess", label: "וידוי",       prompt: "תגיד וידוי מביך עליך. משפט אחד.", hint: "משפט קצר" },
@@ -203,7 +211,16 @@ export function ruleRecId(ruleId) {
 
 // רשימת ההקלטות של שחקן אחד, בפורמט שהאולפן הקיים יודע להציג
 export function buildPlayerTasks(playerIndex, playerCount) {
-  const out = WORD_PROMPTS.map((p) => ({
+  const out = [{
+    id: wordRecId(playerIndex, NAME_PROMPT.id),
+    kind: "name",
+    cat: NAME_PROMPT.id,
+    speaker: NAME_PROMPT.id,
+    text: NAME_PROMPT.prompt,
+    hint: NAME_PROMPT.hint,
+    label: NAME_PROMPT.label,
+  }];
+  WORD_PROMPTS.forEach((p) => out.push({
     id: wordRecId(playerIndex, p.id),
     kind: "word",
     cat: p.id,
@@ -265,31 +282,45 @@ export function buildStory(playerCount, recordings, seed, players) {
   const set = STORY_SETS[Math.floor(rnd() * STORY_SETS.length)] || STORY_SETS[0];
 
   const pools = {};
-  const queues = {};
   WORD_PROMPTS.forEach((w) => {
     const ids = [];
     for (let i = 0; i < n; i++) {
       const id = wordRecId(i, w.id);
       if (recordings[id]) ids.push({ id, player: i });
     }
-    pools[w.id] = ids;
-    queues[w.id] = shuffle(ids);
+    pools[w.id] = shuffle(ids);
   });
 
   const heard = new Array(n).fill(0);   // כמה פעמים כל שחקן נשמע
   const named = new Array(n).fill(0);   // כמה פעמים כל שחקן הוזכר בשם
 
-  // מתוך התור: מי שנשמע הכי מעט קודם, שובר שוויון באקראי
+  const allRecs = [];
+  WORD_PROMPTS.forEach((w) => (pools[w.id] || []).forEach((r) => allRecs.push(r)));
+  const usedIds = new Set();
+
+  // אף מילה לא נשמעת פעמיים. אם הקטגוריה נגמרה, לוקחים הקלטה שעוד לא
+  // הושמעה מקטגוריה אחרת — מילה לא צפויה עדיפה על מילה חוזרת.
   const take = (cat) => {
-    if (!pools[cat] || !pools[cat].length) return null;
-    if (!queues[cat].length) queues[cat] = shuffle(pools[cat]);
-    let best = 0;
-    for (let i = 1; i < queues[cat].length; i++) {
-      if (heard[queues[cat][i].player] < heard[queues[cat][best].player]) best = i;
+    let list = (pools[cat] || []).filter((r) => !usedIds.has(r.id));
+    let borrowed = false;
+    if (!list.length) {
+      list = allRecs.filter((r) => !usedIds.has(r.id));
+      borrowed = true;
     }
-    const pick = queues[cat].splice(best, 1)[0];
+    if (!list.length) {
+      list = (pools[cat] && pools[cat].length) ? pools[cat] : allRecs;
+      borrowed = !(pools[cat] && pools[cat].length);
+    }
+    if (!list.length) return null;
+    let best = 0;
+    for (let i = 1; i < list.length; i++) {
+      if (heard[list[i].player] < heard[list[best].player]) best = i;
+      else if (heard[list[i].player] === heard[list[best].player] && rnd() < 0.35) best = i;
+    }
+    const pick = list[best];
+    usedIds.add(pick.id);
     heard[pick.player]++;
-    return pick;
+    return { ...pick, borrowed };
   };
 
   const takeName = () => {
@@ -297,20 +328,34 @@ export function buildStory(playerCount, recordings, seed, players) {
     for (let i = 1; i < n; i++) if (named[i] < named[best]) best = i;
     named[best]++;
     const nm = (players && players[best]) || "שחקן " + (best + 1);
-    return { name: nm, player: best };
+    const rid = wordRecId(best, "myname");
+    return { name: nm, player: best, recId: recordings[rid] ? rid : null };
   };
 
-  const chapters = set.chapters.filter((c) => n >= c.min);
+  // אף מילה לא חוזרת: אם אין מספיק הקלטות לכל המקומות, מקצרים את הסיפור
+  // במקום להשמיע פעמיים את אותו דבר.
+  let chapters = set.chapters.filter((c) => n >= c.min);
+  const budget = allRecs.length;
+  let spent = 0;
+  const fitted = [];
+  for (const c of chapters) {
+    const need = c.parts.filter((x) => x.cat).length;
+    if (spent + need > budget && fitted.length) break;
+    fitted.push(c);
+    spent += need;
+  }
+  chapters = fitted;
+
   const built = chapters.map((c) => ({
     title: c.title,
     parts: c.parts.map((p) => {
-      if (p.who) { const w = takeName(); return { text: w.name, isName: true, player: w.player }; }
+      if (p.who) { const w = takeName(); return { text: w.name, isName: true, player: w.player, recId: w.recId }; }
       if (!p.cat) return { text: p.t };
       const prompt = WORD_PROMPTS.find((w) => w.id === p.cat);
       const label = (prompt && prompt.label) || p.cat;
       const pick = take(p.cat);
       if (!pick) return { slot: p.cat, label, missing: true };
-      return { slot: p.cat, label, recId: pick.id, player: pick.player };
+      return { slot: p.cat, label, recId: pick.id, player: pick.player, borrowed: !!pick.borrowed };
     }),
   }));
   built.setTitle = set.title;
