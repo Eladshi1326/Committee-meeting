@@ -163,10 +163,12 @@ export default function WordStudio({ tasks, playerName, playerIndex, recordings,
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="shrink-0 flex items-center gap-3 px-3 pt-3 pb-1">
         <button onClick={onHome} className="p-2 rounded-xl" style={{ color: T.muted }} aria-label="חזרה"><Home size={22} /></button>
-        <div className="flex-1">
-          <div className="flex justify-between text-xs mb-1" style={{ color: T.dim }}>
-            <span>{playerName}</span>
-            <span style={{ color: allDone ? T.ok : T.lamp }}>{done} / {list.length}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between gap-2 text-xs mb-1" style={{ color: T.dim }}>
+            <span className="truncate">{playerName}</span>
+            <span className="shrink-0 font-bold" style={{ color: allDone ? T.ok : T.lamp }}>
+              {allDone ? "הכל מוכן" : "הוקלטו " + done + " מתוך " + list.length}
+            </span>
           </div>
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: T.raised }}>
             <div className="h-full rounded-full" style={{ width: (done / list.length) * 100 + "%", background: allDone ? T.ok : T.lamp, transition: "width .4s" }} />
@@ -176,7 +178,10 @@ export default function WordStudio({ tasks, playerName, playerIndex, recordings,
 
       <div className="flex-1 vg-scroll flex flex-col justify-center px-5 py-4">
         <div key={task.id} className="vg-rise">
-          <div className="flex items-center gap-2 text-xs mb-3">
+          <div className="flex items-center flex-wrap gap-2 text-xs mb-3">
+            <span className="rounded-full px-2.5 py-1 font-bold" style={{ background: T.lamp, color: T.onLamp }}>
+              {(isNarr ? "קטע " : task.kind === "rule" ? "חוק " : task.kind === "name" ? "הקלטה " : "מילה ") + (i + 1) + " מתוך " + list.length}
+            </span>
             <span className="rounded-full px-2.5 py-1 font-bold" style={{ background: isRule ? T.lamp + "22" : T.raised, color: isRule ? T.lamp : T.muted, border: "1px solid " + (isRule ? T.lamp + "66" : T.line) }}>
               {task.label}
             </span>

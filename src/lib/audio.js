@@ -124,6 +124,13 @@ export async function analyzeTrim(blob) {
 
 // ניגון קטע מתוך הקלטה דרך Web Audio. מדויק, ולא תלוי במטא-דאטה של webm
 // שלרוב חסרה ושוברת קפיצה בתוך אלמנט audio רגיל.
+// מפענחים הקלטה מראש (בזמן שמשהו אחר מתנגן), כדי שכשיגיע התור שלה
+// היא תתחיל בלי השהיית פענוח.
+export function prewarmRec(rec) {
+  if (!rec || !getCtx()) return;
+  try { bufferFor(rec); } catch (e) { /* ignore */ }
+}
+
 function playTrimmed(rec, onEnd, onFail) {
   const c = getCtx();
   if (!c) { onFail(); return null; }

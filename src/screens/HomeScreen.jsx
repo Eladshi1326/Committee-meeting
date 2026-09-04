@@ -401,6 +401,7 @@ export default function HomeScreen({
   const ready = c.npcTotal > 0 && npcMissing === 0;
   const firstMissing = lines.findIndex((l) => !recordings[l.id]);
   const [showLines, setShowLines] = useState(false);
+  const [showSets, setShowSets] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const scrollRef = useRef(null);
 
@@ -506,7 +507,8 @@ export default function HomeScreen({
               <div className="rounded-3xl p-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
                 <div className="flex items-baseline justify-between">
                   <div className="text-sm" style={{ color: T.muted }}>הוקלט</div>
-                  <div className="text-2xl font-bold">
+                  {/* dir="ltr" כדי שהמספרים לא יתהפכו: 12 / 50 ולא 50 / 12 */}
+                  <div className="text-2xl font-bold" dir="ltr" style={{ unicodeBidi: "isolate" }}>
                     <span style={{ color: allIn ? T.ok : T.lamp }}>{got}</span>
                     <span style={{ color: T.dim }}> / {total}</span>
                   </div>
@@ -514,13 +516,23 @@ export default function HomeScreen({
                 <div className="mt-2"><ProgressBar pct={total ? (got / total) * 100 : 0} /></div>
               </div>
 
-              <div className="rounded-3xl p-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
-                <div className="text-sm" style={{ color: T.ink }}>איזה סיפור</div>
-                <div className="text-xs mt-0.5 leading-relaxed" style={{ color: T.dim }}>
+              <div className="rounded-3xl px-4 py-3" style={{ background: T.surface, border: "1px solid " + T.line }}>
+                <button onClick={() => setShowSets((v) => !v)} className="w-full flex items-center gap-2 text-right">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm" style={{ color: T.ink }}>
+                      איזה סיפור · <span style={{ color: T.lamp }}>{wordSetId ? (wordSets || []).filter((x) => x.id === wordSetId).map((x) => x.title)[0] : "אקראי"}</span>
+                    </div>
+                  </div>
+                  {showSets ? <ChevronUp size={16} style={{ color: T.dim }} /> : <ChevronDown size={16} style={{ color: T.dim }} />}
+                </button>
+                {showSets && (
+                <div className="text-xs mt-1 leading-relaxed" style={{ color: T.dim }}>
                   {wordSetId ? "הסיפור קבוע. המילים מתערבבות מחדש בכל השמעה, אבל זה תמיד יהיה הסיפור הזה."
                     : "בכל השמעה הטלפון מגריל אחד מהסיפורים. אפשר לבחור אחד קבוע."}
                   {narrator >= 0 && " המקריא מקליט את הסיפור שנבחר פה."}
                 </div>
+                )}
+                {showSets && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <button
                     onClick={() => onPickWordSet(null)}
@@ -548,6 +560,7 @@ export default function HomeScreen({
                     </button>
                   ))}
                 </div>
+                )}
               </div>
 
               {(() => {

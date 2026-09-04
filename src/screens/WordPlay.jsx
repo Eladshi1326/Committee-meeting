@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Play, RotateCcw, Volume2, ChevronLeft, BookOpen } from "lucide-react";
 import { T } from "../theme.js";
-import { playRec } from "../lib/audio.js";
+import { playRec, prewarmRec } from "../lib/audio.js";
 import { speak, stopTTS, ttsSupported } from "../lib/tts.js";
 import { RULE_PARTS, buildStory, ruleRecId, activeRoster } from "../data/wordgame.js";
 
@@ -134,21 +134,34 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
       const breath = first ? (page.k === 0 ? CHAPTER_BREATH : PAGE_BREATH) : 0;
       const lastOnPage = pi === page.parts.length - 1;
       const lastInChapter = lastOnPage && page.k === page.n - 1;
-      const tail = AFTER_WORD + (lastInChapter ? CHAPTER_HOLD : lastOnPage ? 350 : 0);
-      const r = part.recId && !part.missing ? recordings[part.recId] : null;
-      const isWord = !!(part.slot || part.isName);
+      const recOf = (x) => (x && x.recId && !x.missing ? recordings[x.recId] : null);
+      const isWordPart = (x) => !!(x && (x.slot || x.isName));
+      const prev = pi > 0 ? page.parts[pi - 1] : null;
+      const next = page.parts[pi + 1] || null;
+      const r = recOf(part);
+      const isWord = isWordPart(part);
+      // קטע שהטלפון מקריא בעצמו (אין לו הקלטה של מקריא אנושי)
+      const robotReads = (x) => robot && !!x && !isWordPart(x) && !recOf(x) && !x.missing;
+      // בהקראה אוטומטית: ההקראה והמילה שאחריה נשמעות כמשפט אחד, בלי חור באמצע
+      const glued = robot && ((robotReads(part) && isWordPart(next)) || (isWord && robotReads(next)));
+      const tail = glued ? 0 : AFTER_WORD + (lastInChapter ? CHAPTER_HOLD : lastOnPage ? 350 : 0);
       const hold = part.isName ? 1100 : part.missing ? 1400 : readMs(part.text, speed);
       const onEnd = () => { setSpeaking(false); later(finish, tail); };
       const onFail = () => { setSpeaking(false); later(finish, hold); };
+      // מפענחים מראש את ההקלטה הבאה, שלא תהיה השהיית פענוח כשהיא תתחיל
+      const nextRec = recOf(next);
+      if (nextRec) prewarmRec(nextRec);
       if (r && a) {
-        // טקסט: שומעים את המקריא. מילה: קודם הנקודות קופצות, ורק אז שומעים.
-        later(() => { setSpeaking(true); stop = playRec(a, r, onEnd, onFail, onFail); }, breath + (isWord ? POP_MS : 120));
+        // טקסט: שומעים את המקריא. מילה: קודם הנקודות קופצות, ורק אז שומעים —
+        // חוץ ממילה שבאה מיד אחרי הקראה של הטלפון, ששם היא נכנסת בלי הפסקה.
+        const pop = isWord ? (robotReads(prev) ? 0 : POP_MS) : 120;
+        later(() => { setSpeaking(true); stop = playRec(a, r, onEnd, onFail, onFail); }, breath + pop);
       } else if (robot && !isWord && !part.missing) {
         // אין מקריא אנושי לקטע הזה — הטלפון מקריא אותו. הקלטות ושמות אף פעם לא.
         later(() => {
           setSpeaking(true);
           stop = speak(part.text, { voiceURI: ttsVoice, rate: ttsRate || 1, onEnd, onFail });
-        }, breath + 80);
+        }, breath + (first ? 80 : 30));
       } else if (liveRead && !isWord && !part.missing) {
         // מישהו קורא את זה בקול. מחכים לו, בלי שעון.
       } else {
@@ -170,7 +183,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="shrink-0 flex items-center justify-between px-3 pt-3">
         <button onClick={() => { stopAudio(); onExit(); }} className="p-2 rounded-xl" style={{ color: T.muted }} aria-label="יציאה"><X size={22} /></button>
-        <div className="text-xs" style={{ color: T.dim }}>
+        <div className="text-xs font-bold truncate px-1" style={{ color: phase === "story" || phase === "rules" ? T.lamp : T.dim }}>
           {phase === "rules" ? "החוקים · " + (ri + 1) + " מתוך " + rules.length
             : phase === "story" ? (page ? "פרק " + (page.ci + 1) + " מתוך " + story.length : "")
             : ""}
@@ -369,7 +382,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
     <>
       <div onClick={advance} className="flex-1 vg-scroll flex flex-col justify-center px-5 py-6 select-none">
         <div className="text-xs mb-3" style={{ color: T.dim }}>
-          {page ? page.title : ""}{page && page.n > 1 ? " · " + (page.k + 1) + "/" + page.n : ""}
+          {page ? page.title : ""}{page && page.n > 1 ? " · עמוד " + (page.k + 1) + " מתוך " + page.n : ""}
         </div>
         <p key={pgi} className="text-2xl leading-relaxed vg-rise">
           {shown.map((p, k) => {

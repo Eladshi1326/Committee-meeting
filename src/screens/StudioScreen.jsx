@@ -205,11 +205,11 @@ export default function StudioScreen({
         <button onClick={onHome} disabled={busy} className="p-2 rounded-xl" style={{ color: busy ? T.dim : T.muted }} aria-label="חזרה">
           <Home size={22} />
         </button>
-        <div className="text-xs" style={{ color: T.dim }}>
-          שורה <span style={{ color: T.ink }}>{index + 1}</span> מתוך {lines.length}
+        <div className="text-xs font-bold" style={{ color: T.lamp }}>
+          שורה {index + 1} מתוך {lines.length}
         </div>
-        <div className="text-xs px-2" style={{ color: counts.recorded === counts.total ? T.ok : T.lamp }}>
-          {counts.recorded} הוקלטו
+        <div className="text-xs px-2" style={{ color: counts.recorded === counts.total ? T.ok : T.muted }}>
+          הוקלטו {counts.recorded} מתוך {counts.total}
         </div>
       </div>
 
