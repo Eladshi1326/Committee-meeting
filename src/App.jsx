@@ -4,7 +4,7 @@ import { CHARS } from "./data/script.js";
 import { storiesFor, getStory, isAdult } from "./data/stories.js";
 import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, personalizeText, buildNameMap } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
-import { buildPlayerTasks, allTasks, storyProgress } from "./data/wordgame.js";
+import { buildPlayerTasks, storyProgress } from "./data/wordgame.js";
 import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS, analyzeTrim, resumeCtx } from "./lib/audio.js";
 import { DEFAULT_SETTINGS, hasIDB, kvGet, kvSet, kvDel, recSet, recDel, recClear, recAll } from "./lib/storage.js";
 import HomeScreen from "./screens/HomeScreen.jsx";
@@ -187,6 +187,8 @@ export default function App() {
     });
     if (!on && isAdult(script.id)) { setScript(getStory("s1")); setStudioIdx(0); }
   }, [storageOk, script]);
+
+  const narratorIdx = typeof settings.narrator === "number" ? settings.narrator : -1;
 
   const newWordStory = useCallback(() => {
     setSettings((prev) => {
@@ -413,7 +415,7 @@ export default function App() {
           />
         ) : screen === "wordstudio" ? (
           <WordStudio
-            tasks={buildPlayerTasks(activePlayer, Math.max(2, players.length))}
+            tasks={buildPlayerTasks(activePlayer, Math.max(2, players.length), narratorIdx)}
             playerName={players[activePlayer] || "שחקן " + (activePlayer + 1)}
             playerIndex={activePlayer}
             recordings={recordings}
@@ -426,7 +428,7 @@ export default function App() {
           <WordPlay
             playerCount={Math.max(2, players.length)}
             players={players}
-            narrator={typeof settings.narrator === "number" ? settings.narrator : -1}
+            narrator={narratorIdx}
             recordings={recordings}
             seed={settings.wordSeed || 1}
             onNewStory={newWordStory}
@@ -482,14 +484,14 @@ export default function App() {
             onSetParty={setParty}
             mode={settings.mode || "story"}
             onSetMode={(m) => setSetting("mode", m)}
-            narrator={typeof settings.narrator === "number" ? settings.narrator : -1}
-            onSetNarrator={(i) => setSetting("narrator", i)}
+            narrator={narratorIdx}
+            onSetNarrator={(i) => { setSetting("narrator", i); setStudioIdx(0); setActivePlayer(0); }}
             setupDone={!!settings.setupDone}
             onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}
-            wordProgress={party ? storyProgress(players.length, recordings) : null}
-            wordTasksFor={(p) => buildPlayerTasks(p, Math.max(2, players.length)).filter((t) => recordings[t.id]).length}
-            wordTaskCount={(p) => buildPlayerTasks(p, Math.max(2, players.length)).length}
+            wordProgress={party ? storyProgress(players.length, recordings, narratorIdx) : null}
+            wordTasksFor={(p) => buildPlayerTasks(p, Math.max(2, players.length), narratorIdx).filter((t) => recordings[t.id]).length}
+            wordTaskCount={(p) => buildPlayerTasks(p, Math.max(2, players.length), narratorIdx).length}
             onWordStudio={(p) => { setActivePlayer(p); setScreen("wordstudio"); }}
             onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); resumeCtx(); newWordStory(); setScreen("wordplay"); }}
             onStudio={(i) => {

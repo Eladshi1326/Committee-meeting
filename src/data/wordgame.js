@@ -196,9 +196,18 @@ export const RECORD_LIMIT = 20;
 
 // ---- בניית מה שצריך להקליט ----
 // כל שחקן מקליט את כל המילים (כדי שיהיה מאגר קולות מגוון) ואת החלק שלו בחוקים.
-export function ruleIdsFor(playerIndex, playerCount) {
-  const n = Math.max(1, playerCount);
-  return RULE_PARTS.filter((_, i) => i % n === playerIndex).map((r) => r.id);
+// המקריא לא מקליט כלום ולא מופיע בסיפור. הוא רק קורא בקול.
+export function activePlayers(playerCount, narrator) {
+  const out = [];
+  for (let i = 0; i < Math.max(1, playerCount); i++) if (i !== narrator) out.push(i);
+  return out.length ? out : [0];
+}
+
+export function ruleIdsFor(playerIndex, playerCount, narrator) {
+  const act = activePlayers(playerCount, narrator);
+  const k = act.indexOf(playerIndex);
+  if (k < 0) return [];
+  return RULE_PARTS.filter((_, i) => i % act.length === k).map((r) => r.id);
 }
 
 export function wordRecId(playerIndex, promptId) {
@@ -210,7 +219,8 @@ export function ruleRecId(ruleId) {
 }
 
 // רשימת ההקלטות של שחקן אחד, בפורמט שהאולפן הקיים יודע להציג
-export function buildPlayerTasks(playerIndex, playerCount) {
+export function buildPlayerTasks(playerIndex, playerCount, narrator) {
+  if (playerIndex === narrator) return [];
   const out = [{
     id: wordRecId(playerIndex, NAME_PROMPT.id),
     kind: "name",
@@ -229,7 +239,7 @@ export function buildPlayerTasks(playerIndex, playerCount) {
     hint: p.hint,
     label: p.label,
   }));
-  ruleIdsFor(playerIndex, playerCount).forEach((rid) => {
+  ruleIdsFor(playerIndex, playerCount, narrator).forEach((rid) => {
     const r = RULE_PARTS.find((x) => x.id === rid);
     out.push({
       id: ruleRecId(rid),
@@ -244,10 +254,10 @@ export function buildPlayerTasks(playerIndex, playerCount) {
   return out;
 }
 
-export function allTasks(playerCount) {
+export function allTasks(playerCount, narrator) {
   const n = Math.max(1, playerCount);
   const out = [];
-  for (let i = 0; i < n; i++) out.push(...buildPlayerTasks(i, n));
+  activePlayers(n, narrator).forEach((i) => out.push(...buildPlayerTasks(i, n, narrator)));
   // כל חוק מוקלט פעם אחת בלבד
   const seen = new Set();
   return out.filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)));
@@ -267,8 +277,9 @@ function seeded(seed) {
 // בונה סיפור: בוחר ערכה, ממלא כל מקום בהקלטה של מישהו, ומשבץ שמות אמיתיים.
 // שני כללים: אותה הקלטה לא חוזרת עד שכל הקטגוריה נוצלה, ומי שנשמע הכי מעט
 // מקבל עדיפות — כדי שכולם יישמעו כמה שיותר שווה.
-export function buildStory(playerCount, recordings, seed, players) {
+export function buildStory(playerCount, recordings, seed, players, narrator) {
   const n = Math.max(1, playerCount);
+  const act = activePlayers(n, narrator);
   const rnd = seeded(seed || 1);
   const shuffle = (arr) => {
     const a = arr.slice();
@@ -284,10 +295,10 @@ export function buildStory(playerCount, recordings, seed, players) {
   const pools = {};
   WORD_PROMPTS.forEach((w) => {
     const ids = [];
-    for (let i = 0; i < n; i++) {
+    act.forEach((i) => {
       const id = wordRecId(i, w.id);
       if (recordings[id]) ids.push({ id, player: i });
-    }
+    });
     pools[w.id] = shuffle(ids);
   });
 
@@ -324,8 +335,8 @@ export function buildStory(playerCount, recordings, seed, players) {
   };
 
   const takeName = () => {
-    let best = 0;
-    for (let i = 1; i < n; i++) if (named[i] < named[best]) best = i;
+    let best = act[0];
+    act.forEach((i) => { if (named[i] < named[best]) best = i; });
     named[best]++;
     const nm = (players && players[best]) || "שחקן " + (best + 1);
     const rid = wordRecId(best, "myname");
@@ -369,8 +380,8 @@ export function voiceBalance(story, playerCount) {
   return c;
 }
 
-export function storyProgress(playerCount, recordings) {
-  const tasks = allTasks(playerCount);
+export function storyProgress(playerCount, recordings, narrator) {
+  const tasks = allTasks(playerCount, narrator);
   const done = tasks.filter((t) => recordings[t.id]).length;
   return { total: tasks.length, done };
 }

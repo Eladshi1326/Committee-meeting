@@ -467,6 +467,7 @@ export default function HomeScreen({
               <div className="vg-stagger flex flex-col gap-2">
                 <div className="text-xs" style={{ color: T.dim }}>תן את הטלפון לשחקן שתורו להקליט</div>
                 {players.map((name, i) => {
+                  if (i === narrator) return null;
                   const t = wordTaskCount ? wordTaskCount(i) : 0;
                   const g = wordTasksFor ? wordTasksFor(i) : 0;
                   const full = t > 0 && g === t;
@@ -498,30 +499,37 @@ export default function HomeScreen({
 
         {party && (
           <section className="shrink-0 rounded-3xl px-4 py-3" style={{ background: T.surface, border: "1px solid " + T.line }}>
-            <Toggle
-              on={narrator >= 0}
-              onChange={(v) => onSetNarrator(v ? 0 : -1)}
-              label="מקריא הסיפור"
-              hint="הסיפור עצמו כתוב על המסך ולכן שקט. מי שנבחר מקריא אותו בקול, והטקסט מחכה לו במקום להתקדם לבד. המילים המוקלטות מתנגנות כרגיל."
-            />
-            {narrator >= 0 && (
-              <div className="flex flex-wrap gap-1.5 pb-2">
-                {players.map((name, i) => (
-                  <button
-                    key={i}
-                    onClick={() => onSetNarrator(i)}
-                    className="vg-press rounded-full px-3 py-1.5 text-xs font-bold"
-                    style={{
-                      background: narrator === i ? T.lamp : T.raised,
-                      color: narrator === i ? T.onLamp : T.muted,
-                      border: "1px solid " + (narrator === i ? T.lamp : T.line),
-                    }}
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="text-sm mb-1" style={{ color: T.ink }}>מי מקריא את הסיפור?</div>
+            <div className="text-xs mb-2 leading-relaxed" style={{ color: T.dim }}>
+              הסיפור כתוב על המסך ולכן שקט. מי שמקריא אותו בקול <span style={{ color: T.lamp }}>לא מקליט כלום</span> ולא מופיע בסיפור — הוא רק קורא.
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onSetNarrator(-1)}
+                className="vg-press rounded-full px-3 py-1.5 text-xs font-bold"
+                style={{
+                  background: narrator < 0 ? T.lamp : T.raised,
+                  color: narrator < 0 ? T.onLamp : T.muted,
+                  border: "1px solid " + (narrator < 0 ? T.lamp : T.line),
+                }}
+              >
+                אף אחד
+              </button>
+              {players.map((name, i) => (
+                <button
+                  key={i}
+                  onClick={() => onSetNarrator(narrator === i ? -1 : i)}
+                  className="vg-press rounded-full px-3 py-1.5 text-xs font-bold"
+                  style={{
+                    background: narrator === i ? T.lamp : T.raised,
+                    color: narrator === i ? T.onLamp : T.muted,
+                    border: "1px solid " + (narrator === i ? T.lamp : T.line),
+                  }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           </section>
         )}
 
