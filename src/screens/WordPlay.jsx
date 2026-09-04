@@ -13,7 +13,7 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
   const [ci, setCi] = useState(0);
   const [pi, setPi] = useState(0);
 
-  const story = useMemo(() => buildStory(playerCount, recordings, seed), [playerCount, recordings, seed]);
+  const story = useMemo(() => buildStory(playerCount, recordings, seed, players), [playerCount, recordings, seed, players]);
   const rules = useMemo(() => RULE_PARTS.map((r, i) => ({ ...r, recId: ruleRecId(r.id), player: i % Math.max(1, playerCount) })), [playerCount]);
 
   const chapter = story[ci] || null;
@@ -101,6 +101,20 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
         >
           <Play size={20} /> להשמיע את החוקים
         </button>
+        <button
+          onClick={() => { setPhase("story"); setCi(0); setPi(0); }}
+          className="vg-press mt-2 w-full rounded-2xl py-3 text-sm flex items-center justify-center gap-2"
+          style={{ background: T.surface, border: "1px solid " + T.line, color: T.muted }}
+        >
+          <ChevronLeft size={16} /> כבר יודעים את החוקים, ישר לסיפור
+        </button>
+        <button
+          onClick={onNewStory}
+          className="mt-2 w-full py-2 text-xs flex items-center justify-center gap-1"
+          style={{ color: T.dim }}
+        >
+          <RotateCcw size={13} /> לערבב את המילים מחדש
+        </button>
       </div>
     );
   }
@@ -112,6 +126,9 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
         <p className="mt-3 text-base leading-relaxed" style={{ color: T.muted }}>
           מי שאמר את המילה שהצחיקה הכי חזק — שותה. מי שמתבייש במילה שלו — מודה שהיא שלו ושותה פעמיים.
         </p>
+        <div className="mt-4 text-xs" style={{ color: T.dim }}>
+          {story.length} פרקים · {story.reduce((a, c) => a + c.parts.filter((p) => p.recId).length, 0)} מילים שלכם
+        </div>
         <button
           onClick={() => { onNewStory(); setPhase("story"); setCi(0); setPi(0); }}
           className="vg-press mt-7 w-full rounded-2xl py-4 font-bold text-lg flex items-center justify-center gap-2"
@@ -162,6 +179,9 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
         <p className="text-2xl leading-relaxed">
           {shownSoFar.map((p, k) => {
             const last = k === shownSoFar.length - 1;
+            if (p.isName) return (
+              <span key={k} className={last ? "vg-pop inline-block" : "inline-block"} style={{ color: T.ok, fontWeight: 800, margin: "0 2px" }}>{p.text} </span>
+            );
             if (p.text) return <span key={k} style={{ color: last ? T.ink : T.muted }}>{p.text} </span>;
             const missing = p.missing || !recordings[p.recId];
             return (

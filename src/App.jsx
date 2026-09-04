@@ -475,7 +475,7 @@ export default function App() {
             wordTasksFor={(p) => buildPlayerTasks(p, Math.max(2, players.length)).filter((t) => recordings[t.id]).length}
             wordTaskCount={(p) => buildPlayerTasks(p, Math.max(2, players.length)).length}
             onWordStudio={(p) => { setActivePlayer(p); setScreen("wordstudio"); }}
-            onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); setScreen("wordplay"); }}
+            onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); newWordStory(); setScreen("wordplay"); }}
             onStudio={(i) => {
               const src = lines[i];
               const j = src ? studioLines.findIndex((l) => l.id === src.id) : 0;

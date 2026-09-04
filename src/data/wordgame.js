@@ -1,6 +1,7 @@
 // משחק המילים: אין תסריט כתוב מראש. כל אחד מקליט בעיוורון מילים בודדות
 // לפי קטגוריה, ובזמן המשחק המשפטים נבנים מהמילים האלה בסדר אקראי.
 // אף אחד לא יודע לאן המילה שלו הולכת, וזו כל הבדיחה.
+// יש כמה ערכות סיפור, ובכל משחק נבחרת אחת באקראי.
 
 export const WORD_PROMPTS = [
   { id: "curse",   label: "קללה",        prompt: "תגיד קללה. מילה אחת, הכי גסה שיש לך.", hint: "מילה אחת" },
@@ -36,76 +37,152 @@ export const RULE_PARTS = [
 
 // הסיפור. t = טקסט שמופיע על המסך, cat = מקום שמתמלא בהקלטה של מישהו.
 // min = מכמה שחקנים הפרק הזה קיים בכלל, ככה שקבוצה גדולה מקבלת סיפור ארוך יותר.
-export const CHAPTERS = [
+const SET_A = {
+  id: "a",
+  title: "הלילה בדירה",
+  chapters: [
   {
-    min: 1,
-    title: "אחת בלילה",
+    min: 1, title: "אחת בלילה",
     parts: [
-      { t: "בשעה" }, { cat: "num" }, { t: "בלילה מישהו דפק בדלת וצעק" }, { cat: "shout" },
-      { t: "פתחנו. בחוץ עמד" }, { cat: "job" }, { t: "אחד, ובידיים שלו" }, { cat: "object" },
+      { t: "השעה הייתה" }, { cat: "num" }, { t: "בלילה כשמישהו דפק בדלת וצעק" }, { cat: "shout" },
+      { t: "היחיד שקם לפתוח היה" }, { who: true },
+      { t: "פתחנו. בחוץ עמד בן אדם. לפי הבגדים, כנראה" }, { cat: "job" },
       { t: "הוא הסתכל עלינו ואמר מילה אחת:" }, { cat: "curse" },
     ],
   },
   {
-    min: 1,
-    title: "מה שהיה בשקית",
+    min: 1, title: "השקית",
     parts: [
-      { t: "בשקית שהוא הביא היה" }, { cat: "gross" }, { t: "וגם" }, { cat: "food" },
-      { t: "הריח היה" }, { cat: "adj" }, { t: "לגמרי." },
+      { t: "הוא הביא שקית. בשקית היה" }, { cat: "gross" },
+      { t: "וגם משהו שנראה כמו" }, { cat: "food" },
+      { t: "הריח היה" }, { cat: "adj" }, { t: "וזה נכנס לנו לבגדים." },
+      { who: true }, { t: "הריח קודם, ואז הקיא לתוך הכיור בלי להתנצל." },
       { t: "הוא אמר שזה בשביל" }, { cat: "body" }, { t: "ושאסור לשאול שאלות." },
     ],
   },
   {
-    min: 1,
-    title: "המשחק",
+    min: 1, title: "החוקים שלו",
     parts: [
-      { t: "הוא הכריז על משחק. החוק הראשון:" }, { cat: "verb" },
-      { t: "החוק השני: מי שמפסיד מראה לכולם את ה" }, { cat: "body2" },
-      { t: "מישהו התנגד ואמר:" }, { cat: "threat" },
-      { t: "אז הוא ענה בשקט:" }, { cat: "curse2" },
+      { t: "הוא הכריז על משחק. חוק ראשון:" }, { cat: "verb" },
+      { t: "חוק שני: מי שמפסיד מראה לכולם את" }, { cat: "body2" },
+      { who: true }, { t: "התנגד ואמר לו בפרצוף:" }, { cat: "threat" },
+      { t: "הוא ענה בשקט:" }, { cat: "curse2" },
     ],
   },
   {
-    min: 3,
-    title: "החיה",
+    min: 1, title: "הסיבוב הראשון",
     parts: [
-      { t: "בשלב הזה נכנס ל" }, { cat: "place" }, { t: "בעל חיים. זה היה" }, { cat: "animal" },
-      { t: "אף אחד לא ידע של מי הוא. הוא ישר הלך ל" }, { cat: "object" },
+      { t: "התחלנו לשחק. הראשון שהפסיד היה" }, { who: true }, { t: "והוא היה חייב להתוודות, אז הוא אמר:" }, { cat: "confess" },
+      { t: "כולם שתקו." }, { who: true }, { t: "לחש" }, { cat: "curse" },
+      { t: "ואז מישהו אחר צעק" }, { cat: "shout" }, { t: "וזה נהיה בלגן." },
+    ],
+  },
+  {
+    min: 1, title: "מה שהיה במקרר",
+    parts: [
+      { t: "בשלב הזה פתחנו את המקרר. בפנים היה" }, { cat: "gross" },
+      { t: "לידו" }, { who: true }, { t: "שם" }, { cat: "object" }, { t: "בלי הסבר, וסגר את הדלת כאילו לא ראינו." },
+      { t: "אמרנו שנזרוק את זה מחר. זה עדיין שם." },
+    ],
+  },
+  {
+    min: 1, title: "החיה",
+    parts: [
+      { t: "ואז נכנס לחדר בעל חיים. זה היה" }, { cat: "animal" },
+      { t: "אף אחד לא ידע של מי הוא. הוא הלך ישר אל" }, { cat: "object" },
       { t: "ועשה עליו משהו" }, { cat: "adj" },
-      { t: "מישהו צילם. מישהו אחר צעק" }, { cat: "shout" },
+      { who: true }, { t: "צילם את זה מכל הזוויות. אנחנו מצטערים על זה עד היום." },
     ],
   },
   {
-    min: 4,
-    title: "הווידוי",
+    min: 3, title: "השכנה",
     parts: [
-      { t: "כדי להוריד את המתח כל אחד היה צריך להתוודות. הראשון אמר:" }, { cat: "confess" },
-      { t: "אחריו מישהו אמר:" }, { cat: "confess" },
-      { t: "ואז נהיה שקט, ומישהו לחש:" }, { cat: "curse" },
-      { t: "מאותו רגע כולם ידעו יותר מדי אחד על השני." },
+      { t: "בשעה" }, { cat: "num" }, { t: "השכנה מלמטה עלתה. היא אמרה שהיא שומעת" }, { cat: "gross" },
+      { t: "דרך הרצפה, ושהיא קמה מוקדם כי היא" }, { cat: "job" },
+      { t: "היא הסתכלה ישר על" }, { who: true }, { t: "וצעקה" }, { cat: "curse2" },
+      { t: "הזמנו אותה להיכנס. היא נכנסה. זאת הייתה טעות." },
     ],
   },
   {
-    min: 6,
-    title: "המשטרה",
+    min: 3, title: "המשחק השני",
     parts: [
-      { t: "בשעה" }, { cat: "num" }, { t: "הגיעה המשטרה. השכן התלונן על רעש ועל" }, { cat: "gross" },
-      { t: "השוטר שאל מי אחראי. כולם הצביעו על ה" }, { cat: "job" },
+      { t: "היא הציעה משחק משלה. החוק:" }, { cat: "verb" },
+      { t: "מי שמסרב, שותה וגם נוגע ב" }, { cat: "body" },
+      { t: "של מי שיושב לידו. אף אחד לא סירב." },
+      { t: "אחרי שלושה סיבובים" }, { who: true }, { t: "התוודה מול כולם:" }, { cat: "confess" },
+    ],
+  },
+  {
+    min: 4, title: "הטלפון",
+    parts: [
+      { who: true }, { t: "מצא טלפון על השולחן ופתח אותו. בגלריה היה" }, { cat: "gross" },
+      { t: "ומאתיים תמונות של" }, { cat: "animal" },
+      { t: "בעל הטלפון קם, אמר" }, { cat: "threat" },
+      { t: "ולקח אותו בחזרה. אף אחד לא דיבר על זה יותר." },
+    ],
+  },
+  {
+    min: 4, title: "האוכל",
+    parts: [
+      { t: "התחיל להיות רעב. הזמנו" }, { cat: "food" },
+      { t: "וזה הגיע אחרי" }, { cat: "num" }, { t: "שעות, קר לגמרי." },
+      { t: "מי שהביא את זה נראה" }, { cat: "adj" },
+      { t: "ו" }, { who: true }, { t: "אמר לו" }, { cat: "curse" }, { t: "בטעות, בקול רם, והוא שמע." },
+    ],
+  },
+  {
+    min: 6, title: "המשטרה",
+    parts: [
+      { t: "בשלב הזה הגיעה המשטרה. השוטר שאל מי אחראי, וכולם הצביעו על" }, { cat: "job" },
       { t: "הוא הסביר בנימוס:" }, { cat: "confess" },
-      { t: "השוטר רשם הכל, הסתכל עלינו ואמר:" }, { cat: "curse2" },
+      { t: "השוטר רשם הכל, הסתכל עלינו ואמר" }, { cat: "curse2" },
+      { t: "ואז הוא לקח" }, { cat: "food" }, { t: "מהשולחן והלך." },
     ],
   },
   {
-    min: 1,
-    title: "הבוקר שאחרי",
+    min: 6, title: "הגג",
     parts: [
-      { t: "בבוקר התעוררנו ב" }, { cat: "place" }, { t: "אחד מאיתנו החזיק" }, { cat: "object" },
+      { t: "עלינו לגג. משם רואים את" }, { cat: "place" },
+      { who: true }, { t: "רצה להוציא את" }, { cat: "body2" }, { t: "ולהשתין מהגג לכיוון הרחוב." },
+      { t: "עצרנו אותו. הוא צעק" }, { cat: "shout" }, { t: "בכל מקרה." },
+    ],
+  },
+  {
+    min: 8, title: "הווידויים",
+    parts: [
+      { t: "בארבע לפנות בוקר ישבנו במעגל. הראשון אמר:" }, { cat: "confess" },
+      { t: "השני אמר:" }, { cat: "confess" },
+      { t: "השלישי היה" }, { who: true }, { t: "והוא לא אמר כלום, רק הרים את החולצה והראה לנו את" }, { cat: "body" },
+      { t: "ואז כולם ידעו יותר מדי אחד על השני." },
+    ],
+  },
+  {
+    min: 8, title: "מי שנעלם",
+    parts: [
+      { t: "ספרנו וגילינו שחסר אחד. חיפשנו אותו ב" }, { cat: "place" },
+      { t: "מצאנו רק" }, { cat: "object" }, { t: "שלו על הרצפה." },
+      { who: true }, { t: "נשבע שהוא ראה אותו הולך ברחוב עם" }, { cat: "animal" },
+      { t: "עד היום הוא לא ענה בקבוצה." },
+    ],
+  },
+  {
+    min: 1, title: "הבוקר שאחרי",
+    parts: [
+      { t: "התעוררנו ב" }, { cat: "place" }, { who: true }, { t: "החזיק ביד" }, { cat: "object" },
       { t: "ולא ידע למה. על הרצפה היה" }, { cat: "gross" },
-      { t: "וכולנו הסכמנו על דבר אחד: לא מספרים לאף אחד. ובעיקר לא ל" }, { cat: "job" },
+      { t: "וכולנו הסכמנו על דבר אחד: לא מספרים לאף אחד, ובעיקר לא ל" }, { cat: "job" },
       { t: "סוף." },
     ],
   },
-];
+  ],
+};
+
+import { EXTRA_SETS } from "./wordsets/index.js";
+
+export const STORY_SETS = [SET_A, ...EXTRA_SETS];
+
+// תאימות לאחור
+export const CHAPTERS = SET_A.chapters;
 
 export const RECORD_LIMIT = 20;
 
@@ -170,27 +247,81 @@ function seeded(seed) {
   };
 }
 
-// לכל מקום בסיפור בוחרים הקלטה של מישהו מהקטגוריה הזאת.
-// עדיפות למי שבאמת הוקלט; אם אין, המקום מסומן כחסר.
-export function buildStory(playerCount, recordings, seed) {
+// בונה סיפור: בוחר ערכה, ממלא כל מקום בהקלטה של מישהו, ומשבץ שמות אמיתיים.
+// שני כללים: אותה הקלטה לא חוזרת עד שכל הקטגוריה נוצלה, ומי שנשמע הכי מעט
+// מקבל עדיפות — כדי שכולם יישמעו כמה שיותר שווה.
+export function buildStory(playerCount, recordings, seed, players) {
   const n = Math.max(1, playerCount);
   const rnd = seeded(seed || 1);
-  const chapters = CHAPTERS.filter((c) => n >= c.min);
-  return chapters.map((c) => ({
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  };
+
+  const set = STORY_SETS[Math.floor(rnd() * STORY_SETS.length)] || STORY_SETS[0];
+
+  const pools = {};
+  const queues = {};
+  WORD_PROMPTS.forEach((w) => {
+    const ids = [];
+    for (let i = 0; i < n; i++) {
+      const id = wordRecId(i, w.id);
+      if (recordings[id]) ids.push({ id, player: i });
+    }
+    pools[w.id] = ids;
+    queues[w.id] = shuffle(ids);
+  });
+
+  const heard = new Array(n).fill(0);   // כמה פעמים כל שחקן נשמע
+  const named = new Array(n).fill(0);   // כמה פעמים כל שחקן הוזכר בשם
+
+  // מתוך התור: מי שנשמע הכי מעט קודם, שובר שוויון באקראי
+  const take = (cat) => {
+    if (!pools[cat] || !pools[cat].length) return null;
+    if (!queues[cat].length) queues[cat] = shuffle(pools[cat]);
+    let best = 0;
+    for (let i = 1; i < queues[cat].length; i++) {
+      if (heard[queues[cat][i].player] < heard[queues[cat][best].player]) best = i;
+    }
+    const pick = queues[cat].splice(best, 1)[0];
+    heard[pick.player]++;
+    return pick;
+  };
+
+  const takeName = () => {
+    let best = 0;
+    for (let i = 1; i < n; i++) if (named[i] < named[best]) best = i;
+    named[best]++;
+    const nm = (players && players[best]) || "שחקן " + (best + 1);
+    return { name: nm, player: best };
+  };
+
+  const chapters = set.chapters.filter((c) => n >= c.min);
+  const built = chapters.map((c) => ({
     title: c.title,
     parts: c.parts.map((p) => {
+      if (p.who) { const w = takeName(); return { text: w.name, isName: true, player: w.player }; }
       if (!p.cat) return { text: p.t };
-      const pool = [];
-      for (let i = 0; i < n; i++) {
-        const id = wordRecId(i, p.cat);
-        if (recordings[id]) pool.push({ id, player: i });
-      }
       const prompt = WORD_PROMPTS.find((w) => w.id === p.cat);
-      if (!pool.length) return { slot: p.cat, label: (prompt && prompt.label) || p.cat, missing: true };
-      const pick = pool[Math.floor(rnd() * pool.length)];
-      return { slot: p.cat, label: (prompt && prompt.label) || p.cat, recId: pick.id, player: pick.player };
+      const label = (prompt && prompt.label) || p.cat;
+      const pick = take(p.cat);
+      if (!pick) return { slot: p.cat, label, missing: true };
+      return { slot: p.cat, label, recId: pick.id, player: pick.player };
     }),
   }));
+  built.setTitle = set.title;
+  return built;
+}
+
+// לבדיקה: כמה פעמים כל שחקן נשמע בסיפור
+export function voiceBalance(story, playerCount) {
+  const c = new Array(Math.max(1, playerCount)).fill(0);
+  story.forEach((ch) => ch.parts.forEach((p) => { if (p.recId != null && p.player != null) c[p.player]++; }));
+  return c;
 }
 
 export function storyProgress(playerCount, recordings) {
