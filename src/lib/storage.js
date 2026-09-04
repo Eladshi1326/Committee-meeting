@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS = {
   adultUnlocked: false,  // המדף של 18+ נפתח
   realNames: true,       // השמות של השחקנים נכנסים לסיפור במקום שמות הדמויות
   turns: true,           // במשחק קבוצתי: כל צומת מישהו אחר מחליט
+  wordSeed: 0,           // הזרע של משחק המילים
 };
 
 let dbPromise = null;

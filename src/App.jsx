@@ -4,6 +4,7 @@ import { CHARS } from "./data/script.js";
 import { storiesFor, getStory, isAdult } from "./data/stories.js";
 import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, buildNameMap } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
+import { buildPlayerTasks, allTasks, storyProgress } from "./data/wordgame.js";
 import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS } from "./lib/audio.js";
 import { DEFAULT_SETTINGS, hasIDB, kvGet, kvSet, kvDel, recSet, recDel, recClear, recAll } from "./lib/storage.js";
 import HomeScreen from "./screens/HomeScreen.jsx";
@@ -11,6 +12,8 @@ import StudioScreen from "./screens/StudioScreen.jsx";
 import PlayScreen from "./screens/PlayScreen.jsx";
 import ScriptScreen from "./screens/ScriptScreen.jsx";
 import MoreScreen from "./screens/MoreScreen.jsx";
+import WordStudio from "./screens/WordStudio.jsx";
+import WordPlay from "./screens/WordPlay.jsx";
 
 const BACKUP_VERSION = 1;
 
@@ -27,7 +30,7 @@ export default function App() {
   const [recordings, setRecordings] = useState({});
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [endings, setEndings] = useState([]);
-  const [screen, setScreen] = useState("home"); // home | studio | play | script | more | party
+  const [screen, setScreen] = useState("home"); // home | studio | play | script | more | wordstudio | wordplay
   const [activePlayer, setActivePlayer] = useState(0);
   const [studioIdx, setStudioIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
@@ -177,6 +180,14 @@ export default function App() {
     });
     if (!on && isAdult(script.id)) { setScript(getStory("s1")); setStudioIdx(0); }
   }, [storageOk, script]);
+
+  const newWordStory = useCallback(() => {
+    setSettings((prev) => {
+      const next = { ...prev, wordSeed: newSeed() };
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+  }, [storageOk]);
 
   const setParty = useCallback((names, mode) => {
     setSettings((prev) => {
@@ -377,6 +388,27 @@ export default function App() {
             onExit={exitPlay}
             onEnding={recordEnding}
           />
+        ) : screen === "wordstudio" ? (
+          <WordStudio
+            tasks={buildPlayerTasks(activePlayer, Math.max(2, players.length))}
+            playerName={players[activePlayer] || "שחקן " + (activePlayer + 1)}
+            playerIndex={activePlayer}
+            recordings={recordings}
+            onSave={saveRecording}
+            onDelete={deleteRecording}
+            onHome={() => setScreen("home")}
+            audioRef={audioRef}
+          />
+        ) : screen === "wordplay" ? (
+          <WordPlay
+            playerCount={Math.max(2, players.length)}
+            players={players}
+            recordings={recordings}
+            seed={settings.wordSeed || 1}
+            onNewStory={newWordStory}
+            onExit={() => setScreen("home")}
+            audioRef={audioRef}
+          />
         ) : screen === "script" ? (
           <ScriptScreen script={script} onApply={applyScript} onReset={resetScript} onBack={() => setScreen("home")} />
         ) : screen === "more" ? (
@@ -426,6 +458,11 @@ export default function App() {
             setupDone={!!settings.setupDone}
             onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}
+            wordProgress={party ? storyProgress(players.length, recordings) : null}
+            wordTasksFor={(p) => buildPlayerTasks(p, Math.max(2, players.length)).filter((t) => recordings[t.id]).length}
+            wordTaskCount={(p) => buildPlayerTasks(p, Math.max(2, players.length)).length}
+            onWordStudio={(p) => { setActivePlayer(p); setScreen("wordstudio"); }}
+            onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); setScreen("wordplay"); }}
             onStudio={(i) => {
               const src = lines[i];
               const j = src ? studioLines.findIndex((l) => l.id === src.id) : 0;

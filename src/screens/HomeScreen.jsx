@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import {
   Mic, Play, Check, FileText, Settings, Download, ChevronDown, ChevronUp,
-  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle,
+  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle, Dice5, Volume2,
 } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, countLines, endingIds, flattenLines } from "../lib/script.js";
@@ -317,6 +317,7 @@ export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
   setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap,
+  wordProgress, wordTasksFor, wordTaskCount, onWordStudio, onWordPlay,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
   const [step, setStep] = useState(setupDone ? "main" : "players");
@@ -477,6 +478,62 @@ export default function HomeScreen({
         )}
         {storageWarn && <p className="text-xs" style={{ color: T.rec }}>{storageWarn}</p>}
       </section>
+
+      {party && wordProgress && (
+        <section className="vg-rise rounded-3xl p-4 flex flex-col gap-3" style={{ background: T.surface, border: "1px solid " + T.lamp + "44" }}>
+          <div className="flex items-start gap-3">
+            <div className="text-3xl vg-float">🎲</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold">סיפור מהמילים שלכם</div>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: T.muted }}>
+                משחק נפרד: כל אחד מקליט בעיוורון כמה מילים בודדות וקצת מחוקי המשחק, והטלפון מרכיב מזה סיפור.
+                אף אחד לא יודע לאן המילה שלו הולכת.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            {players.map((name, i) => {
+              const total = wordTaskCount ? wordTaskCount(i) : 0;
+              const got = wordTasksFor ? wordTasksFor(i) : 0;
+              const full = total > 0 && got === total;
+              return (
+                <button
+                  key={i}
+                  onClick={() => onWordStudio(i)}
+                  className="vg-press w-full rounded-xl px-3 py-2 flex items-center gap-3 text-right"
+                  style={{ background: T.raised, border: "1px solid " + (full ? T.ok : T.line) }}
+                >
+                  <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: T.surface, color: full ? T.ok : T.lamp }}>
+                    {full ? <Check size={14} /> : i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0 text-sm truncate">{name}</div>
+                  <div className="text-xs" style={{ color: full ? T.ok : T.dim }}>{got} / {total}</div>
+                  <Mic size={14} style={{ color: full ? T.ok : T.lamp }} />
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={onWordPlay}
+            disabled={wordProgress.done === 0}
+            className="vg-press w-full rounded-2xl py-3 font-bold flex items-center justify-center gap-2"
+            style={{
+              background: wordProgress.done === wordProgress.total ? T.ok : T.raised,
+              color: wordProgress.done === wordProgress.total ? "#10240f" : wordProgress.done ? T.lamp : T.dim,
+              border: "1px solid " + (wordProgress.done === wordProgress.total ? T.ok : T.line),
+            }}
+          >
+            <Dice5 size={18} />
+            {wordProgress.done === wordProgress.total
+              ? "להשמיע את הסיפור"
+              : wordProgress.done === 0
+                ? "קודם מקליטים"
+                : "להשמיע בכל זאת (" + (wordProgress.total - wordProgress.done) + " חסרות)"}
+          </button>
+        </section>
+      )}
 
       <section className="vg-rise rounded-3xl p-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
         <div className="flex items-baseline justify-between">
