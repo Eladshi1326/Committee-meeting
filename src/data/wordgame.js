@@ -220,10 +220,11 @@ export function ruleRecId(ruleId) {
   return "wg_" + ruleId;
 }
 
-// מה שחקן אחד צריך להקליט. המקריא מקבל את המילים בלבד, בלי חוקים, וזה רשות.
+// מה שחקן אחד צריך להקליט. המקריא לא מקליט מילים בכלל — הוא מקליט את הסיפור (למטה).
 export function buildPlayerTasks(roster, narrator, index) {
   const me = (roster || [])[index];
   if (!me) return [];
+  if (index === narrator) return [];
   const out = [{
     id: wordRecId(me.id, NAME_PROMPT.id),
     kind: "name", cat: NAME_PROMPT.id, speaker: NAME_PROMPT.id,
@@ -263,6 +264,56 @@ export function storyProgress(roster, recordings, narrator) {
   return { total: tasks.length, done };
 }
 
+// ---- המקריא ----
+// המקריא לא משתתף במילים. אחרי שכולם סיימו הוא מקליט את כל קטעי הטקסט
+// של הערכה שנבחרה, בסדר אקראי, ובהשמעה שומעים אותו מספר את הסיפור.
+// ההקלטות שלו נשמרות לפי מי הוא ואיזו ערכה, אז החלפת מקריא או ערכה לא מוחקת כלום.
+
+export function getSet(setId) {
+  return STORY_SETS.find((s) => s.id === setId) || null;
+}
+
+export function pickSetId(seed) {
+  const rnd = seeded(seed || Date.now());
+  return STORY_SETS[Math.floor(rnd() * STORY_SETS.length)].id;
+}
+
+export function nextSetId(setId) {
+  const i = STORY_SETS.findIndex((s) => s.id === setId);
+  return STORY_SETS[(i + 1) % STORY_SETS.length].id;
+}
+
+export function narrTextId(playerId, setId, ci, pi) {
+  return "wg_n_" + playerId + "_" + setId + "_" + ci + "_" + pi;
+}
+
+// כל קטעי הטקסט שהמקריא צריך להקליט: רק פרקים שבכלל יכולים לקרות עם כמות השחקנים הזאת.
+export function narratorTasks(roster, narrator, setId) {
+  const me = (roster || [])[narrator];
+  const set = getSet(setId);
+  if (!me || !set) return [];
+  const n = Math.max(1, activeRoster(roster, narrator).length);
+  const out = [];
+  set.chapters.forEach((c, ci) => {
+    if (n < c.min) return;
+    c.parts.forEach((p, pi) => {
+      if (!p.t || !p.t.trim()) return;
+      out.push({
+        id: narrTextId(me.id, set.id, ci, pi),
+        kind: "narr", cat: "narr", speaker: "narr",
+        text: p.t, hint: "תקריא בדיוק ככה, כמו מספר סיפורים. בלי לנחש מה בא לפני ואחרי.", label: "קטע מהסיפור",
+      });
+    });
+  });
+  return out;
+}
+
+export function narratorProgress(roster, narrator, recordings, setId) {
+  const tasks = narratorTasks(roster, narrator, setId);
+  const done = tasks.filter((t) => recordings[t.id]).length;
+  return { total: tasks.length, done };
+}
+
 // ---- הרכבת הסיפור ----
 function seeded(seed) {
   let a = (seed >>> 0) || 1;
@@ -276,8 +327,9 @@ function seeded(seed) {
 
 // בוחר ערכה, ממלא כל מקום בהקלטה של מישהו, ומשבץ שמות אמיתיים.
 // שלושה כללים: אף הקלטה לא נשמעת פעמיים, מי שנשמע הכי מעט מקבל עדיפות,
-// והמקריא בחוץ — אלא אם הוא בכל זאת הקליט.
-export function buildStory(roster, recordings, seed, narrator) {
+// והמקריא בחוץ — הוא לא מופיע בסיפור, רק מספר אותו.
+// setId = הערכה שננעלה בשביל המקריא. בלי מקריא הערכה מוגרלת מחדש בכל סיפור.
+export function buildStory(roster, recordings, seed, narrator, setId) {
   const all = (roster || []).filter((x) => x && x.id);
   const rnd = seeded(seed || 1);
   const shuffle = (arr) => {
@@ -289,12 +341,12 @@ export function buildStory(roster, recordings, seed, narrator) {
     return a;
   };
 
-  const narratorPlayed = narrator >= 0 && all[narrator] &&
-    WORD_PROMPTS.some((w) => recordings[wordRecId(all[narrator].id, w.id)]);
-  const act = narratorPlayed ? all : activeRoster(roster, narrator);
+  const act = activeRoster(roster, narrator);
   const n = Math.max(1, act.length);
+  const reader = narrator >= 0 && all[narrator] ? all[narrator] : null;
 
-  const set = STORY_SETS[Math.floor(rnd() * STORY_SETS.length)] || STORY_SETS[0];
+  const rolled = STORY_SETS[Math.floor(rnd() * STORY_SETS.length)] || STORY_SETS[0];
+  const set = getSet(setId) || rolled;
 
   const pools = {};
   WORD_PROMPTS.forEach((w) => {
@@ -340,7 +392,8 @@ export function buildStory(roster, recordings, seed, narrator) {
   };
 
   // אף מילה לא חוזרת: אם אין מספיק הקלטות, מקצרים את הסיפור
-  let chapters = set.chapters.filter((c) => n >= c.min);
+  // שומרים את המיקום המקורי בערכה, כי ההקלטות של המקריא נשמרות לפי פרק ומקום.
+  let chapters = set.chapters.map((c, ci) => ({ ...c, ci })).filter((c) => n >= c.min);
   const budget = allRecs.length;
   let spent = 0;
   const fitted = [];
@@ -354,9 +407,13 @@ export function buildStory(roster, recordings, seed, narrator) {
 
   const built = chapters.map((c) => ({
     title: c.title,
-    parts: c.parts.map((p) => {
+    parts: c.parts.map((p, pi) => {
       if (p.who) { const w = takeName(); return { text: w.name, isName: true, player: w.player, recId: w.recId }; }
-      if (!p.cat) return { text: p.t };
+      if (!p.cat) {
+        const nid = reader ? narrTextId(reader.id, set.id, c.ci, pi) : null;
+        if (nid && recordings[nid]) return { text: p.t, recId: nid, narr: true };
+        return { text: p.t };
+      }
       const prompt = WORD_PROMPTS.find((w) => w.id === p.cat);
       const label = (prompt && prompt.label) || p.cat;
       const pick = take(p.cat);
@@ -365,6 +422,7 @@ export function buildStory(roster, recordings, seed, narrator) {
     }),
   }));
   built.setTitle = set.title;
+  built.setId = set.id;
   return built;
 }
 

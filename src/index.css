@@ -61,6 +61,11 @@ button:focus-visible, textarea:focus-visible {
 }
 
 .vg-rise { animation: vg-rise .3s ease-out both; }
+@keyframes vg-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.vg-fade { animation: vg-fade .4s ease-out both; }
 .vg-pulse-ring {
   position: absolute;
   inset: 0;

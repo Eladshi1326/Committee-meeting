@@ -23,7 +23,7 @@ function shuffled(arr, seed) {
   return out;
 }
 
-export default function WordStudio({ tasks, playerName, playerIndex, recordings, onSave, onDelete, onHome, audioRef }) {
+export default function WordStudio({ tasks, playerName, playerIndex, recordings, onSave, onDelete, onHome, audioRef, finishLabel }) {
   // "תגיד את השם שלך" תמיד ראשון — זה לא חלק מהעיוורון. השאר מעורבב.
   const list = useMemo(() => {
     const name = tasks.filter((t) => t.kind === "name");
@@ -155,7 +155,8 @@ export default function WordStudio({ tasks, playerName, playerIndex, recordings,
   }
 
   const busy = state !== "idle";
-  const isRule = task.kind === "rule";
+  const isNarr = task.kind === "narr";
+  const isRule = task.kind === "rule" || isNarr;
   const allDone = done === list.length;
 
   return (
@@ -181,11 +182,16 @@ export default function WordStudio({ tasks, playerName, playerIndex, recordings,
             </span>
             {rec && <span className="flex items-center gap-1" style={{ color: T.ok }}><Check size={13} /> הוקלט</span>}
           </div>
-          <p className={isRule ? "text-xl leading-relaxed font-medium" : "text-3xl leading-snug font-bold"}>{task.text}</p>
+          <p className={isNarr ? "text-2xl leading-relaxed font-medium" : isRule ? "text-xl leading-relaxed font-medium" : "text-3xl leading-snug font-bold"}>{task.text}</p>
           <div className="mt-3 text-sm" style={{ color: T.dim }}>{task.hint}</div>
           {!isRule && (
             <div className="mt-5 text-xs leading-relaxed" style={{ color: T.dim }}>
               אל תחשוב יותר מדי. אתה לא יודע לאן זה הולך, וזה בדיוק העניין.
+            </div>
+          )}
+          {isNarr && (
+            <div className="mt-5 text-xs leading-relaxed" style={{ color: T.dim }}>
+              הקטעים מעורבבים בכוונה. במקום שבו הקטע נגמר באמצע, נכנסת מילה של מישהו מהחבר׳ה.
             </div>
           )}
         </div>
@@ -234,7 +240,7 @@ export default function WordStudio({ tasks, playerName, playerIndex, recordings,
 
         {allDone && (
           <button onClick={onHome} className="vg-press w-full rounded-2xl py-3 font-bold" style={{ background: T.ok, color: "#10240f" }}>
-            סיימתי — תן את הטלפון לבא בתור
+            {finishLabel || "סיימתי — תן את הטלפון לבא בתור"}
           </button>
         )}
       </div>

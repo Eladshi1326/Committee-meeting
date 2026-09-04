@@ -4,7 +4,7 @@ import { CHARS } from "./data/script.js";
 import { storiesFor, getStory, isAdult } from "./data/stories.js";
 import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, personalizeText, buildNameMap } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
-import { buildPlayerTasks, storyProgress } from "./data/wordgame.js";
+import { buildPlayerTasks, storyProgress, narratorTasks, narratorProgress, getSet, pickSetId, nextSetId } from "./data/wordgame.js";
 
 function freshId() {
   return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -210,6 +210,29 @@ export default function App() {
     });
   }, [storageOk]);
 
+  // הערכה של המקריא: ננעלת ברגע שבוחרים מקריא, כדי שהוא יקליט בדיוק את הסיפור שיישמע.
+  // בלי מקריא הערכה מוגרלת מחדש בכל סיפור.
+  const wordSetId = narratorIdx >= 0 && getSet(settings.wordSetId) ? settings.wordSetId : null;
+
+  const setNarrator = useCallback((i) => {
+    setSettings((prev) => {
+      const next = { ...prev, narrator: i };
+      if (i >= 0 && !getSet(prev.wordSetId)) next.wordSetId = pickSetId(newSeed());
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+    setStudioIdx(0);
+    setActivePlayer(0);
+  }, [storageOk]);
+
+  const changeWordSet = useCallback(() => {
+    setSettings((prev) => {
+      const next = { ...prev, wordSetId: nextSetId(prev.wordSetId), wordSeed: newSeed() };
+      if (storageOk) { kvSet("settings", next).catch(() => {}); }
+      return next;
+    });
+  }, [storageOk]);
+
   // names מגיע כמערך של { id, name } כדי שמחיקה מהאמצע לא תזיז הקלטות
   const setParty = useCallback((entries, mode) => {
     const list = (entries || []).map((e) => (typeof e === "string" ? { id: freshId(), name: e } : e));
@@ -373,6 +396,11 @@ export default function App() {
 
   useEffect(() => { settingsRef.current = settings; }, [settings]);
 
+  // הגדרות ישנות: יש מקריא אבל עוד לא ננעלה לו ערכה
+  useEffect(() => {
+    if (loaded && narratorIdx >= 0 && !getSet(settings.wordSetId)) setSetting("wordSetId", pickSetId(newSeed()));
+  }, [loaded, narratorIdx, settings.wordSetId, setSetting]);
+
   const lines = useMemo(() => flattenLines(view), [view]);
   const chars = view.characters || CHARS;
   // באולפן: במצב עיוור מקליטים בסדר אקראי קבוע, כדי לא להבין את הסיפור מראש
@@ -435,20 +463,35 @@ export default function App() {
             onEnding={recordEnding}
           />
         ) : screen === "wordstudio" ? (
-          <WordStudio
-            tasks={buildPlayerTasks(roster, narratorIdx, activePlayer)}
-            playerName={players[activePlayer] || "שחקן " + (activePlayer + 1)}
-            playerIndex={activePlayer}
-            recordings={recordings}
-            onSave={saveRecording}
-            onDelete={deleteRecording}
-            onHome={() => setScreen("home")}
-            audioRef={audioRef}
-          />
+          activePlayer === narratorIdx ? (
+            <WordStudio
+              tasks={narratorTasks(roster, narratorIdx, wordSetId)}
+              playerName={(players[activePlayer] || "המקריא") + " · מקריא את ״" + ((getSet(wordSetId) || {}).title || "") + "״"}
+              playerIndex={activePlayer}
+              recordings={recordings}
+              onSave={saveRecording}
+              onDelete={deleteRecording}
+              onHome={() => setScreen("home")}
+              audioRef={audioRef}
+              finishLabel="סיימתי — הסיפור מוכן להשמעה"
+            />
+          ) : (
+            <WordStudio
+              tasks={buildPlayerTasks(roster, narratorIdx, activePlayer)}
+              playerName={players[activePlayer] || "שחקן " + (activePlayer + 1)}
+              playerIndex={activePlayer}
+              recordings={recordings}
+              onSave={saveRecording}
+              onDelete={deleteRecording}
+              onHome={() => setScreen("home")}
+              audioRef={audioRef}
+            />
+          )
         ) : screen === "wordplay" ? (
           <WordPlay
             roster={roster}
             narrator={narratorIdx}
+            setId={wordSetId}
             recordings={recordings}
             seed={settings.wordSeed || 1}
             onNewStory={newWordStory}
@@ -505,7 +548,10 @@ export default function App() {
             mode={settings.mode || "story"}
             onSetMode={(m) => setSetting("mode", m)}
             narrator={narratorIdx}
-            onSetNarrator={(i) => { setSetting("narrator", i); setStudioIdx(0); setActivePlayer(0); }}
+            onSetNarrator={setNarrator}
+            narratorSet={getSet(wordSetId)}
+            narratorProgress={narratorIdx >= 0 ? narratorProgress(roster, narratorIdx, recordings, wordSetId) : null}
+            onChangeWordSet={changeWordSet}
             setupDone={!!settings.setupDone}
             onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}

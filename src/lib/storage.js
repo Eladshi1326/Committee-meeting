@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS = {
   skipSilence: true,     // לדלג על השקט בהתחלה ובסוף של כל הקלטה
   mode: "story",         // "story" = סיפור כתוב, "words" = סיפור מהמילים שלכם
   narrator: -1,          // מי מקריא את הסיפור בקול. -1 = אין מקריא
+  wordSetId: null,       // הערכה שננעלה בשביל המקריא (הוא מקליט את כל הטקסטים שלה)
 };
 
 let dbPromise = null;

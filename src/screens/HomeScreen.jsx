@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import {
   Mic, Play, Check, FileText, Settings, Download, ChevronDown, ChevronUp,
-  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle, Dice5, Volume2, ArrowUp, X,
+  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle, Dice5, Volume2, ArrowUp, X, BookOpen,
 } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, countLines, endingIds, flattenLines } from "../lib/script.js";
@@ -369,7 +369,7 @@ export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
   setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap, mode, onSetMode, introFor,
-  narrator, onSetNarrator, roster,
+  narrator, onSetNarrator, roster, narratorSet, narratorProgress, onChangeWordSet,
   wordProgress, wordTasksFor, wordTaskCount, onWordStudio, onWordPlay,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
@@ -485,58 +485,85 @@ export default function HomeScreen({
                 <div className="mt-2"><ProgressBar pct={total ? (got / total) * 100 : 0} /></div>
               </div>
 
-              <div className="vg-stagger flex flex-col gap-2">
-                <div className="text-xs" style={{ color: T.dim }}>תן את הטלפון לשחקן שתורו להקליט</div>
-                {players.map((name, i) => {
-                  if (i === narrator) return null;
-                  const t = wordTaskCount ? wordTaskCount(i) : 0;
-                  const g = wordTasksFor ? wordTasksFor(i) : 0;
-                  const full = t > 0 && g === t;
-                  return (
+              {(() => {
+                const nt = narratorProgress ? narratorProgress.total : 0;
+                const ng = narratorProgress ? narratorProgress.done : 0;
+                const nOpen = allIn;
+                const nFull = nt > 0 && ng === nt;
+                const setTitle = narratorSet ? narratorSet.title : "";
+                const narrBlock = narrator >= 0 && players[narrator] ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="text-xs mt-1" style={{ color: nOpen && !nFull ? T.lamp : T.dim }}>
+                      {nFull ? "המקריא סיים. אפשר להשמיע." : nOpen ? "כולם סיימו. עכשיו תור המקריא:" : "המקריא מקליט את הסיפור אחרי שכולם מסיימים"}
+                    </div>
                     <button
-                      key={i}
-                      onClick={() => onWordStudio(i)}
-                      className="vg-press w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-right relative overflow-hidden"
-                      style={{ background: T.raised, border: "1px solid " + (full ? T.ok : T.line) }}
+                      onClick={() => { if (nOpen) onWordStudio(narrator); }}
+                      disabled={!nOpen}
+                      className={"w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-right relative overflow-hidden" + (nOpen ? " vg-press" : "")}
+                      style={{
+                        background: nOpen ? T.raised : T.bg,
+                        border: (nOpen ? "1px solid " : "1px dashed ") + (nFull ? T.ok : nOpen ? T.lamp + "88" : T.line),
+                        opacity: nOpen ? 1 : 0.6,
+                      }}
                     >
-                      <div className="absolute inset-y-0 right-0 opacity-10" style={{ width: (t ? (g / t) * 100 : 0) + "%", background: full ? T.ok : T.lamp, transition: "width .5s" }} />
-                      <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center font-bold relative" style={{ background: T.surface, color: full ? T.ok : T.lamp }}>
-                        {full ? <Check size={16} /> : i + 1}
+                      <div className="absolute inset-y-0 right-0 opacity-10" style={{ width: (nt ? (ng / nt) * 100 : 0) + "%", background: nFull ? T.ok : T.lamp, transition: "width .5s" }} />
+                      <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center relative" style={{ background: T.surface, color: nFull ? T.ok : nOpen ? T.lamp : T.muted }}>
+                        {nFull ? <Check size={16} /> : <BookOpen size={15} />}
                       </div>
                       <div className="flex-1 min-w-0 relative">
-                        <div className="text-sm font-bold truncate">{name}</div>
-                        <div className="text-xs" style={{ color: full ? T.ok : T.dim }}>
-                          {full ? "סיים להקליט" : g + " מתוך " + t + " הוקלטו"}
+                        <div className="text-sm font-bold truncate" style={{ color: nOpen ? T.ink : T.muted }}>
+                          {players[narrator]} <span className="font-normal" style={{ color: T.dim }}>· מקריא</span>
+                        </div>
+                        <div className="text-xs" style={{ color: nFull ? T.ok : T.dim }}>
+                          {nFull ? "הקליט את כל הסיפור ״" + setTitle + "״"
+                            : (nOpen ? "מקליט את ״" + setTitle + "״ · " : "״" + setTitle + "״ · ") + ng + " מתוך " + nt + " קטעים"}
                         </div>
                       </div>
-                      <Mic size={16} className="relative" style={{ color: full ? T.ok : T.lamp }} />
+                      <Mic size={16} className="relative" style={{ color: nFull ? T.ok : nOpen ? T.lamp : T.dim }} />
                     </button>
-                  );
-                })}
-
-                {narrator >= 0 && players[narrator] && (() => {
-                  const t = wordTaskCount ? wordTaskCount(narrator) : 0;
-                  const g = wordTasksFor ? wordTasksFor(narrator) : 0;
-                  return (
-                    <button
-                      onClick={() => onWordStudio(narrator)}
-                      className="vg-press w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-right"
-                      style={{ background: T.bg, border: "1px dashed " + T.line }}
-                    >
-                      <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: T.surface, color: T.muted }}>
-                        <Volume2 size={15} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold truncate" style={{ color: T.muted }}>{players[narrator]}</div>
-                        <div className="text-xs" style={{ color: T.dim }}>
-                          מקריא · לא חייב להקליט{g > 0 ? " · הקליט " + g + " מתוך " + t : ""}
-                        </div>
-                      </div>
-                      <Mic size={16} style={{ color: T.dim }} />
-                    </button>
-                  );
-                })()}
-              </div>
+                    {onChangeWordSet && ng === 0 && (
+                      <button onClick={onChangeWordSet} className="self-start text-xs py-1 flex items-center gap-1" style={{ color: T.muted }}>
+                        <Shuffle size={11} /> סיפור אחר למקריא
+                      </button>
+                    )}
+                  </div>
+                ) : null;
+                // כשכולם סיימו, המקריא הוא הצעד הבא — אז הכרטיס שלו עולה למעלה
+                const narrFirst = !!narrBlock && nOpen && !nFull;
+                return (
+                  <div className="vg-stagger flex flex-col gap-2">
+                    {narrFirst && narrBlock}
+                    <div className="text-xs" style={{ color: T.dim }}>{allIn ? "כולם הקליטו" : "תן את הטלפון לשחקן שתורו להקליט"}</div>
+                    {players.map((name, i) => {
+                      if (i === narrator) return null;
+                      const t = wordTaskCount ? wordTaskCount(i) : 0;
+                      const g = wordTasksFor ? wordTasksFor(i) : 0;
+                      const full = t > 0 && g === t;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => onWordStudio(i)}
+                          className="vg-press w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-right relative overflow-hidden"
+                          style={{ background: T.raised, border: "1px solid " + (full ? T.ok : T.line) }}
+                        >
+                          <div className="absolute inset-y-0 right-0 opacity-10" style={{ width: (t ? (g / t) * 100 : 0) + "%", background: full ? T.ok : T.lamp, transition: "width .5s" }} />
+                          <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center font-bold relative" style={{ background: T.surface, color: full ? T.ok : T.lamp }}>
+                            {full ? <Check size={16} /> : i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0 relative">
+                            <div className="text-sm font-bold truncate">{name}</div>
+                            <div className="text-xs" style={{ color: full ? T.ok : T.dim }}>
+                              {full ? "סיים להקליט" : g + " מתוך " + t + " הוקלטו"}
+                            </div>
+                          </div>
+                          <Mic size={16} className="relative" style={{ color: full ? T.ok : T.lamp }} />
+                        </button>
+                      );
+                    })}
+                    {!narrFirst && narrBlock}
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
@@ -545,7 +572,7 @@ export default function HomeScreen({
           <section className="shrink-0 rounded-3xl px-4 py-3" style={{ background: T.surface, border: "1px solid " + T.line }}>
             <div className="text-sm mb-1" style={{ color: T.ink }}>מי מקריא את הסיפור?</div>
             <div className="text-xs mb-2 leading-relaxed" style={{ color: T.dim }}>
-              הסיפור כתוב על המסך ולכן שקט. מי שמקריא אותו בקול <span style={{ color: T.lamp }}>לא מקליט כלום</span> ולא מופיע בסיפור — הוא רק קורא.
+              המקריא <span style={{ color: T.lamp }}>לא מקליט מילים</span> ולא מופיע בסיפור. אחרי שכולם מסיימים הוא מקליט את כל קטעי הסיפור בסדר אקראי, ובהשמעה שומעים אותו מספר.
             </div>
             <div className="flex flex-wrap gap-1.5">
               <button
