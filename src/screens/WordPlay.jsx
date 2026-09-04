@@ -5,7 +5,12 @@ import { playRec } from "../lib/audio.js";
 import { RULE_PARTS, buildStory, ruleRecId, activeRoster } from "../data/wordgame.js";
 
 // כמה זמן להשאיר חתיכה בלי הקלטה על המסך
-const TEXT_MS = 2200;
+// כמה זמן להשאיר טקסט על המסך כדי שאפשר יהיה לקרוא אותו.
+// קצב קבוע לא עובד: משפט של 60 תווים צריך יותר זמן מאחד של 12.
+function readMs(text) {
+  const len = (text || "").length;
+  return Math.max(2000, Math.min(8000, 1600 + len * 80));
+}
 const MAX_TEXT = 90; // טקסט ארוך מזה נשבר לפעימה נפרדת, שלא יהיה קיר של מילים
 
 // חותך פרק לפעימות: כל פעימה היא קצת טקסט והמילה המוקלטת שאחריו.
@@ -79,13 +84,29 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
     let cancelled = false;
     let timer = null;
     let stop = null;
-    const finish = () => { if (cancelled) return; cancelled = true; advance(); };
-    if (r && a) {
-      stop = playRec(a, r, finish, finish, finish);
-    } else if (readerName && phase === "story") {
+    // מתקדמים רק כשגם ההקלטה נגמרה וגם היה מספיק זמן לקרוא את הטקסט,
+    // אחרת מילה קצרה חותכת משפט שלם באמצע.
+    let audioDone = !(r && a);
+    let readDone = false;
+    const maybe = () => {
+      if (cancelled || !audioDone || !readDone) return;
+      cancelled = true;
+      advance();
+    };
+
+    const shownText = phase === "rules"
+      ? (rule ? rule.text : "")
+      : (beat || []).map((x) => x.text || "").join(" ");
+
+    if (readerName && phase === "story") {
       // יש מקריא: הטקסט מחכה שהוא יסיים להקריא, לא לשעון
     } else {
-      timer = setTimeout(finish, TEXT_MS);
+      timer = setTimeout(() => { readDone = true; maybe(); }, readMs(shownText));
+    }
+
+    if (r && a) {
+      const onDone = () => { audioDone = true; maybe(); };
+      stop = playRec(a, r, onDone, onDone, onDone);
     }
     return () => {
       cancelled = true;
@@ -93,7 +114,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
       if (stop) stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, ri, ci, pi]);
+  }, [phase, ri, ci, pi, beat, readerName]);
 
   useEffect(() => () => stopAudio(), []);
 
