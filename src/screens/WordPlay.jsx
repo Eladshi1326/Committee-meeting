@@ -42,6 +42,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
   const [ri, setRi] = useState(0);
   const [ci, setCi] = useState(0);
   const [pi, setPi] = useState(0);
+  const [si, setSi] = useState(0); // 0 = קוראים את הטקסט, 1 = הנקודות מופיעות והמילה מתנגנת
 
   const story = useMemo(() => buildStory(roster, recordings, seed, narrator), [roster, recordings, seed, narrator]);
   const rules = useMemo(() => {
@@ -52,7 +53,13 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
   const chapter = story[ci] || null;
   const beats = useMemo(() => (chapter ? toBeats(chapter.parts) : []), [chapter]);
   const beat = beats[pi] || null;
-  const part = beat ? (beat.find((x) => x.recId) || beat[beat.length - 1]) : null;
+  const slotPart = beat ? beat.find((x) => x.recId || x.slot) : null;
+  const textParts = beat ? (slotPart ? beat.filter((x) => x !== slotPart) : beat) : [];
+  const hasText = textParts.some((x) => (x.text || "").trim());
+  // בלי טקסט לקרוא אין מה לחכות — קופצים ישר לנקודות
+  const stage = !hasText || !slotPart ? 1 : si;
+  const visible = stage === 0 ? textParts : beat || [];
+  const part = slotPart || (beat ? beat[beat.length - 1] : null);
   const rule = rules[ri] || null;
 
   function stopAudio() {
@@ -61,6 +68,8 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
   }
 
   function advance() {
+    // בתוך פעימה: קודם קוראים, ואז מגלים את המילה
+    if (phase === "story" && stage === 0) { setSi(1); return; }
     if (phase === "rules") {
       if (ri + 1 < rules.length) setRi(ri + 1);
       else { setPhase("story"); setCi(0); setPi(0); }
@@ -68,6 +77,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
     }
     if (phase === "story") {
       if (!chapter) { setPhase("end"); return; }
+      setSi(0);
       if (pi + 1 < beats.length) setPi(pi + 1);
       else if (ci + 1 < story.length) { setCi(ci + 1); setPi(0); }
       else setPhase("end");
@@ -78,7 +88,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
   useEffect(() => {
     if (phase !== "rules" && phase !== "story") return undefined;
     const a = audioRef.current;
-    const current = phase === "rules" ? (rule ? { recId: rule.recId } : null) : part;
+    const current = phase === "rules" ? (rule ? { recId: rule.recId } : null) : (stage === 1 ? part : null);
     const recId = current && current.recId;
     const r = recId ? recordings[recId] : null;
     let cancelled = false;
@@ -96,10 +106,14 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
 
     const shownText = phase === "rules"
       ? (rule ? rule.text : "")
-      : (beat || []).map((x) => x.text || "").join(" ");
+      : visible.map((x) => x.text || "").join(" ");
 
-    if (readerName && phase === "story") {
+    if (readerName && phase === "story" && stage === 0) {
       // יש מקריא: הטקסט מחכה שהוא יסיים להקריא, לא לשעון
+    } else if (stage === 1 && r) {
+      // הטקסט כבר נקרא. מחכים להקלטה, אבל לפחות 700ms כדי שהנקודות
+      // הצהובות ייראו גם כשהמילה קצרה מאוד.
+      timer = setTimeout(() => { readDone = true; maybe(); }, 700);
     } else {
       timer = setTimeout(() => { readDone = true; maybe(); }, readMs(shownText));
     }
@@ -114,11 +128,11 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
       if (stop) stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, ri, ci, pi, beat, readerName]);
+  }, [phase, ri, ci, pi, si, beat, readerName]);
 
   useEffect(() => () => stopAudio(), []);
 
-  const waitingForReader = !!readerName && phase === "story" && part && !part.recId;
+  const waitingForReader = !!readerName && phase === "story" && stage === 0;
 
   const shell = (children) => (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -239,7 +253,7 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
           {chapter ? chapter.title : ""} · {pi + 1}/{beats.length}
         </div>
         <p key={ci + "-" + pi} className="vg-rise text-3xl leading-snug font-medium">
-          {(beat || []).map((p, k) => {
+          {visible.map((p, k) => {
             if (p.isName) return <span key={k} style={{ color: T.ok, fontWeight: 800 }}>{p.text} </span>;
             if (p.text) return <span key={k} style={{ color: T.ink }}>{p.text} </span>;
             const missing = p.missing || !recordings[p.recId];
@@ -254,14 +268,14 @@ export default function WordPlay({ roster, recordings, seed, onNewStory, onExit,
             );
           })}
         </p>
-        {part && (part.recId || part.slot) && !part.missing && who && (
+        {stage === 1 && part && (part.recId || part.slot) && !part.missing && who && (
           <div className="mt-6 flex items-center gap-2 text-sm" style={{ color: part.isName ? T.ok : T.lamp }}>
             <Volume2 size={16} className="vg-blink" /> {who}
           </div>
         )}
       </div>
       <div className="shrink-0 px-4 pb-5 text-center text-xs" style={{ color: waitingForReader ? T.lamp : T.dim }}>
-        {waitingForReader ? readerName + " מקריא — הקש כשסיימת" : "הקשה על המסך מדלגת קדימה"}
+        {waitingForReader ? readerName + " מקריא — הקש כשסיימת" : stage === 0 ? "הקש כדי לגלות את המילה" : "הקשה על המסך מדלגת קדימה"}
       </div>
     </>
   );
