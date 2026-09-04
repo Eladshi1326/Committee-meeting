@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { T } from "./theme.js";
 import { CHARS } from "./data/script.js";
 import { storiesFor, getStory, isAdult } from "./data/stories.js";
-import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, buildNameMap } from "./lib/script.js";
+import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, personalizeText, buildNameMap } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
 import { buildPlayerTasks, allTasks, storyProgress } from "./data/wordgame.js";
-import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS } from "./lib/audio.js";
+import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS, analyzeTrim, resumeCtx } from "./lib/audio.js";
 import { DEFAULT_SETTINGS, hasIDB, kvGet, kvSet, kvDel, recSet, recDel, recClear, recAll } from "./lib/storage.js";
 import HomeScreen from "./screens/HomeScreen.jsx";
 import StudioScreen from "./screens/StudioScreen.jsx";
@@ -42,6 +42,7 @@ export default function App() {
   const [importMsg, setImportMsg] = useState("");
 
   const recRef = useRef({});
+  const settingsRef = useRef(DEFAULT_SETTINGS);
   const audioRef = useRef(null);
   const silentRef = useRef(null);
   const installEvtRef = useRef(null);
@@ -94,7 +95,7 @@ export default function App() {
         const restored = {};
         Object.keys(all).forEach((id) => {
           const e = all[id];
-          if (e && e.blob) restored[id] = { url: URL.createObjectURL(e.blob), blob: e.blob, secs: e.secs || 0 };
+          if (e && e.blob) restored[id] = { url: URL.createObjectURL(e.blob), blob: e.blob, secs: e.secs || 0, trim: e.trim || null };
         });
         if (alive) { recRef.current = restored; setRecordings(restored); }
       } catch (e) {
@@ -108,12 +109,17 @@ export default function App() {
   const saveRecording = useCallback(async (id, blob, secs) => {
     const prev = recRef.current[id];
     if (prev && prev.url) { try { URL.revokeObjectURL(prev.url); } catch (e) { /* ignore */ } }
-    const entry = { url: URL.createObjectURL(blob), blob, secs: secs || 0 };
+    // מודדים פעם אחת איפה באמת מדברים. ההקלטה עצמה לא נוגעת.
+    let trim = null;
+    if (settingsRef.current.skipSilence !== false) {
+      try { trim = await analyzeTrim(blob); } catch (e) { trim = null; }
+    }
+    const entry = { url: URL.createObjectURL(blob), blob, secs: secs || 0, trim };
     const next = { ...recRef.current, [id]: entry };
     recRef.current = next;
     setRecordings(next);
     if (storageOk) {
-      try { await recSet(id, { blob, secs: secs || 0, mime: blob.type || "" }); setStorageWarn(""); }
+      try { await recSet(id, { blob, secs: secs || 0, mime: blob.type || "", trim }); setStorageWarn(""); }
       catch (e) { setStorageWarn("לא הצלחתי לשמור לאחסון של הטלפון. ההקלטה תישאר רק כל עוד החלון פתוח."); }
     }
   }, [storageOk]);
@@ -173,8 +179,9 @@ export default function App() {
   const setAdultUnlocked = useCallback((on) => {
     setSettings((prev) => {
       const next = { ...prev, adultUnlocked: !!on };
-      // נעילה חזרה בזמן שסיפור 18+ פעיל מחזירה לסיפור הראשון
+      // נעילה חזרה בזמן שתוכן 18+ פעיל מחזירה לסיפור רגיל
       if (!on && isAdult(prev.storyId)) next.storyId = "s1";
+      if (!on && prev.mode === "words") next.mode = "story";
       if (storageOk) { kvSet("settings", next).catch(() => {}); }
       return next;
     });
@@ -341,6 +348,8 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, [screen]);
 
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+
   const lines = useMemo(() => flattenLines(view), [view]);
   const chars = view.characters || CHARS;
   // באולפן: במצב עיוור מקליטים בסדר אקראי קבוע, כדי לא להבין את הסיפור מראש
@@ -359,6 +368,7 @@ export default function App() {
   function startGame() {
     // בתוך לחיצה של המשתמש: "פותחים" את נגן האודיו כדי שהשורות ינוגנו אוטומטית גם ב-iOS
     unlockAudio(audioRef.current, silentRef.current);
+    resumeCtx();
     setScreen("play");
   }
 
@@ -460,6 +470,7 @@ export default function App() {
             canInstall={canInstall && !installed}
             blind={!!settings.studioBlind}
             stories={storiesFor(!!settings.adultUnlocked)}
+            introFor={(st) => personalizeText(st.intro, st.characters, buildNameMap(st, settings.players || [], settings.realNames !== false))}
             storyId={script.id || "s1"}
             onSelectStory={selectStory}
             adultUnlocked={!!settings.adultUnlocked}
@@ -468,6 +479,8 @@ export default function App() {
             splitMode={settings.splitMode}
             playerStats={party ? playerProgress(lines, assign, recordings, players.length) : null}
             onSetParty={setParty}
+            mode={settings.mode || "story"}
+            onSetMode={(m) => setSetting("mode", m)}
             setupDone={!!settings.setupDone}
             onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}
@@ -475,7 +488,7 @@ export default function App() {
             wordTasksFor={(p) => buildPlayerTasks(p, Math.max(2, players.length)).filter((t) => recordings[t.id]).length}
             wordTaskCount={(p) => buildPlayerTasks(p, Math.max(2, players.length)).length}
             onWordStudio={(p) => { setActivePlayer(p); setScreen("wordstudio"); }}
-            onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); newWordStory(); setScreen("wordplay"); }}
+            onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); resumeCtx(); newWordStory(); setScreen("wordplay"); }}
             onStudio={(i) => {
               const src = lines[i];
               const j = src ? studioLines.findIndex((l) => l.id === src.id) : 0;

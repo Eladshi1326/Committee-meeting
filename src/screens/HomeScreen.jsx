@@ -193,7 +193,8 @@ function PlayersStep({ players, splitMode, onDone, adultUnlocked, onUnlockAdult 
 }
 
 /* ---------------- שלב 2: איזה סיפור ---------------- */
-function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
+function StoryStep({ stories, storyId, playerCount, onPick, onPickWords, onBack, introFor, adultUnlocked }) {
+  const intro = (st) => (introFor ? introFor(st) : st.intro);
   const counts = useMemo(() => {
     const m = {};
     (stories || []).forEach((s) => { m[s.id] = flattenLines(s).length; });
@@ -215,15 +216,45 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
       </header>
 
       <div className="flex-1 vg-scroll flex flex-col gap-3">
+      {adultUnlocked && (
+        <>
+          <button
+            onClick={onPickWords}
+            className="vg-press vg-glow shrink-0 w-full rounded-2xl p-3.5 text-right relative overflow-hidden"
+            style={{ background: "rgba(224,67,63,.10)", border: "1px solid " + T.rec }}
+          >
+            <div className="absolute top-3 left-3 text-xs rounded-full px-2 py-0.5 font-bold" style={{ background: T.rec, color: "#fff" }}>18+</div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl vg-float">🎲</span>
+              <span className="text-xl font-bold" style={{ color: T.rec }}>סיפור מהמילים שלכם</span>
+            </div>
+            <div className="text-xs mt-0.5" style={{ color: T.dim }}>2 שחקנים ומעלה · הכי מהיר</div>
+            <p className="text-xs mt-1.5 leading-relaxed" style={{ color: T.muted }}>
+              בלי תסריט כתוב. כל אחד מקליט בעיוורון כמה מילים בודדות, והטלפון מרכיב מהן סיפור עם השמות שלכם.
+            </p>
+            <div className="flex gap-3 mt-2 text-xs" style={{ color: T.dim }}>
+              <span>~<span style={{ color: T.ink }}>18</span> הקלטות לכל אחד</span>
+              <span><span style={{ color: T.ink }}>4</span> סיפורים</span>
+            </div>
+          </button>
+
+          <div className="shrink-0 flex items-center gap-2 text-xs mt-1" style={{ color: T.dim }}>
+            <div className="h-px flex-1" style={{ background: T.line }} />
+            או סיפור כתוב
+            <div className="h-px flex-1" style={{ background: T.line }} />
+          </div>
+        </>
+      )}
+
       {spicy.length > 0 && (
-        <div className="flex items-center gap-2 text-xs" style={{ color: T.dim }}>
+        <div className="shrink-0 flex items-center gap-2 text-xs" style={{ color: T.dim }}>
           <div className="h-px flex-1" style={{ background: T.line }} />
           רגיל
           <div className="h-px flex-1" style={{ background: T.line }} />
         </div>
       )}
 
-      <div className="vg-stagger flex flex-col gap-3">
+      <div className="vg-stagger shrink-0 flex flex-col gap-3">
         {clean.map((s) => {
           const isRec = s.id === recId;
           const on = s.id === storyId;
@@ -249,7 +280,7 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
               )}
               <div className="text-xl font-bold" style={{ color: isRec ? T.lamp : T.ink }}>{s.title}</div>
               <div className="text-xs mt-0.5" style={{ color: T.dim }}>{s.players}</div>
-              <p className="text-xs mt-1.5 leading-relaxed" style={{ color: T.muted }}>{s.intro}</p>
+              <p className="text-xs mt-1.5 leading-relaxed" style={{ color: T.muted }}>{intro(s)}</p>
               <div className="flex gap-3 mt-2 text-xs" style={{ color: T.dim }}>
                 <span><span style={{ color: T.ink }}>{counts[s.id]}</span> שורות</span>
                 <span><span style={{ color: T.ink }}>{nEnd}</span> סופים</span>
@@ -262,12 +293,12 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
 
       {spicy.length > 0 && (
         <>
-          <div className="flex items-center gap-2 text-xs mt-1" style={{ color: T.rec }}>
+          <div className="shrink-0 flex items-center gap-2 text-xs mt-1" style={{ color: T.rec }}>
             <div className="h-px flex-1" style={{ background: T.line }} />
             <Lock size={12} /> 18+ · למבוגרים בלבד
             <div className="h-px flex-1" style={{ background: T.line }} />
           </div>
-          <div className="vg-stagger flex flex-col gap-3">
+          <div className="vg-stagger shrink-0 flex flex-col gap-3">
             {spicy.map((s) => {
               const isRec = fits(s, playerCount);
               const nEnd = endingIds(s).length;
@@ -290,7 +321,7 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
                   </div>
                   <div className="text-xl font-bold" style={{ color: isRec ? T.rec : T.ink }}>{s.title}</div>
                   <div className="text-xs mt-0.5" style={{ color: T.dim }}>{s.players}</div>
-                  <p className="text-xs mt-1.5 leading-relaxed" style={{ color: T.muted }}>{s.intro}</p>
+                  <p className="text-xs mt-1.5 leading-relaxed" style={{ color: T.muted }}>{intro(s)}</p>
                   <div className="flex gap-3 mt-2 text-xs" style={{ color: T.dim }}>
                     <span><span style={{ color: T.ink }}>{counts[s.id]}</span> שורות</span>
                     <span><span style={{ color: T.ink }}>{nEnd}</span> סופים</span>
@@ -316,7 +347,7 @@ function StoryStep({ stories, storyId, playerCount, onPick, onBack }) {
 export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
-  setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap,
+  setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap, mode, onSetMode, introFor,
   wordProgress, wordTasksFor, wordTaskCount, onWordStudio, onWordPlay,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
@@ -375,11 +406,111 @@ export default function HomeScreen({
     return shell(
       <StoryStep
         stories={stories}
+        introFor={introFor}
+        adultUnlocked={adultUnlocked}
         storyId={storyId}
         playerCount={playerCount}
-        onPick={(id) => { if (id !== storyId) onSelectStory(id); onSetupDone(); setStep("main"); }}
+        onPick={(id) => { onSetMode("story"); if (id !== storyId) onSelectStory(id); onSetupDone(); setStep("main"); }}
+        onPickWords={() => { onSetMode("words"); onSetupDone(); setStep("main"); }}
         onBack={() => setStep("players")}
       />
+    );
+  }
+
+  if (mode === "words" && adultUnlocked) {
+    const total = wordProgress ? wordProgress.total : 0;
+    const got = wordProgress ? wordProgress.done : 0;
+    const allIn = total > 0 && got === total;
+    return shell(
+      <div className="vg-slide flex flex-col flex-1 min-h-0 gap-3">
+        <div className="shrink-0 flex items-center justify-between text-xs" style={{ color: T.dim }}>
+          <button onClick={() => setStep("players")} className="flex items-center gap-1 py-1" style={{ color: T.muted }}>
+            <Users size={13} /> {party ? players.length + " שחקנים" : "משחק יחיד"} <Pencil size={11} />
+          </button>
+          <button onClick={() => setStep("story")} className="flex items-center gap-1 py-1" style={{ color: T.muted }}>
+            <Shuffle size={13} /> למשחק אחר
+          </button>
+        </div>
+
+        <div className="flex-1 vg-scroll flex flex-col gap-4">
+          <header className="vg-stagger text-center pt-1">
+            <div className="text-5xl vg-float">🎲</div>
+            <h1 className="text-3xl font-bold mt-2">סיפור מהמילים שלכם</h1>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: T.muted }}>
+              כל אחד לוקח את הטלפון ומקליט מילים בודדות בלי לדעת לאן הן הולכות, ועוד קצת מחוקי המשחק.
+              אחר כך שומעים את כולם מסבירים את החוקים, והטלפון מרכיב סיפור עם השמות שלכם.
+            </p>
+          </header>
+
+          {!party ? (
+            <button
+              onClick={() => setStep("players")}
+              className="vg-press w-full rounded-2xl py-4 font-bold flex items-center justify-center gap-2"
+              style={{ background: T.raised, color: T.lamp, border: "1px solid " + T.lamp + "66" }}
+            >
+              <Users size={18} /> צריך לפחות 2 שחקנים — להוסיף אנשים
+            </button>
+          ) : (
+            <>
+              <div className="rounded-3xl p-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
+                <div className="flex items-baseline justify-between">
+                  <div className="text-sm" style={{ color: T.muted }}>הוקלט</div>
+                  <div className="text-2xl font-bold">
+                    <span style={{ color: allIn ? T.ok : T.lamp }}>{got}</span>
+                    <span style={{ color: T.dim }}> / {total}</span>
+                  </div>
+                </div>
+                <div className="mt-2"><ProgressBar pct={total ? (got / total) * 100 : 0} /></div>
+              </div>
+
+              <div className="vg-stagger flex flex-col gap-2">
+                <div className="text-xs" style={{ color: T.dim }}>תן את הטלפון לשחקן שתורו להקליט</div>
+                {players.map((name, i) => {
+                  const t = wordTaskCount ? wordTaskCount(i) : 0;
+                  const g = wordTasksFor ? wordTasksFor(i) : 0;
+                  const full = t > 0 && g === t;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => onWordStudio(i)}
+                      className="vg-press w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-right relative overflow-hidden"
+                      style={{ background: T.raised, border: "1px solid " + (full ? T.ok : T.line) }}
+                    >
+                      <div className="absolute inset-y-0 right-0 opacity-10" style={{ width: (t ? (g / t) * 100 : 0) + "%", background: full ? T.ok : T.lamp, transition: "width .5s" }} />
+                      <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center font-bold relative" style={{ background: T.surface, color: full ? T.ok : T.lamp }}>
+                        {full ? <Check size={16} /> : i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0 relative">
+                        <div className="text-sm font-bold truncate">{name}</div>
+                        <div className="text-xs" style={{ color: full ? T.ok : T.dim }}>
+                          {full ? "סיים להקליט" : g + " מתוך " + t + " הוקלטו"}
+                        </div>
+                      </div>
+                      <Mic size={16} className="relative" style={{ color: full ? T.ok : T.lamp }} />
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="shrink-0 flex flex-col gap-2">
+          {party && (
+            <PrimaryButton onClick={onWordPlay} disabled={got === 0} tone={allIn ? "ok" : "quiet"}>
+              <Dice5 size={18} />
+              {allIn ? "להשמיע את הסיפור" : got === 0 ? "קודם מקליטים" : "להשמיע בכל זאת (" + (total - got) + " חסרות)"}
+            </PrimaryButton>
+          )}
+          <button
+            onClick={onMore}
+            className="w-full rounded-2xl py-2.5 text-sm flex items-center justify-center gap-2"
+            style={{ background: T.surface, border: "1px solid " + T.line, color: T.muted }}
+          >
+            <Settings size={16} /> הגדרות
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -489,76 +620,6 @@ export default function HomeScreen({
         )}
         {storageWarn && <p className="text-xs" style={{ color: T.rec }}>{storageWarn}</p>}
       </section>
-
-      {(
-        <section className="vg-rise rounded-3xl p-4 flex flex-col gap-3" style={{ background: T.surface, border: "1px solid " + T.lamp + "44" }}>
-          <div className="flex items-start gap-3">
-            <div className="text-3xl vg-float">🎲</div>
-            <div className="flex-1 min-w-0">
-              <div className="font-bold">סיפור מהמילים שלכם</div>
-              <p className="text-xs mt-1 leading-relaxed" style={{ color: T.muted }}>
-                משחק נפרד: כל אחד מקליט בעיוורון כמה מילים בודדות וקצת מחוקי המשחק, והטלפון מרכיב מזה סיפור.
-                אף אחד לא יודע לאן המילה שלו הולכת.
-              </p>
-            </div>
-          </div>
-
-          {!party && (
-            <button
-              onClick={() => setStep("players")}
-              className="vg-press w-full rounded-2xl py-3 text-sm font-bold flex items-center justify-center gap-2"
-              style={{ background: T.raised, color: T.lamp, border: "1px solid " + T.lamp + "66" }}
-            >
-              <Users size={16} /> צריך לפחות 2 שחקנים — להוסיף אנשים
-            </button>
-          )}
-
-          {party && (
-          <div className="flex flex-col gap-1.5">
-            {players.map((name, i) => {
-              const total = wordTaskCount ? wordTaskCount(i) : 0;
-              const got = wordTasksFor ? wordTasksFor(i) : 0;
-              const full = total > 0 && got === total;
-              return (
-                <button
-                  key={i}
-                  onClick={() => onWordStudio(i)}
-                  className="vg-press w-full rounded-xl px-3 py-2 flex items-center gap-3 text-right"
-                  style={{ background: T.raised, border: "1px solid " + (full ? T.ok : T.line) }}
-                >
-                  <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: T.surface, color: full ? T.ok : T.lamp }}>
-                    {full ? <Check size={14} /> : i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0 text-sm truncate">{name}</div>
-                  <div className="text-xs" style={{ color: full ? T.ok : T.dim }}>{got} / {total}</div>
-                  <Mic size={14} style={{ color: full ? T.ok : T.lamp }} />
-                </button>
-              );
-            })}
-          </div>
-          )}
-
-          {party && wordProgress && (
-          <button
-            onClick={onWordPlay}
-            disabled={wordProgress.done === 0}
-            className="vg-press w-full rounded-2xl py-3 font-bold flex items-center justify-center gap-2"
-            style={{
-              background: wordProgress.done === wordProgress.total ? T.ok : T.raised,
-              color: wordProgress.done === wordProgress.total ? "#10240f" : wordProgress.done ? T.lamp : T.dim,
-              border: "1px solid " + (wordProgress.done === wordProgress.total ? T.ok : T.line),
-            }}
-          >
-            <Dice5 size={18} />
-            {wordProgress.done === wordProgress.total
-              ? "להשמיע את הסיפור"
-              : wordProgress.done === 0
-                ? "קודם מקליטים"
-                : "להשמיע בכל זאת (" + (wordProgress.total - wordProgress.done) + " חסרות)"}
-          </button>
-          )}
-        </section>
-      )}
 
       <section className="vg-rise rounded-3xl p-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
         <div className="flex items-baseline justify-between">

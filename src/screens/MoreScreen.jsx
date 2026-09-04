@@ -83,6 +83,12 @@ export default function MoreScreen({
 
       <Section title="אולפן">
         <Toggle
+          on={settings.skipSilence !== false}
+          onChange={(v) => onSetSetting("skipSilence", v)}
+          label="לדלג על השקט בהקלטות"
+          hint="מי שלוחץ הקלט ורק אז חושב מה להגיד — השקט בהתחלה ובסוף לא יישמע. ההקלטה עצמה נשמרת שלמה, רק ההשמעה מדלגת."
+        />
+        <Toggle
           on={!!settings.studioAutoNext}
           onChange={(v) => onSetSetting("studioAutoNext", v)}
           label="אחרי כל הקלטה לקפוץ לשורה הבאה שלא הוקלטה"

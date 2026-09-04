@@ -20,6 +20,8 @@ export const DEFAULT_SETTINGS = {
   realNames: true,       // השמות של השחקנים נכנסים לסיפור במקום שמות הדמויות
   turns: true,           // במשחק קבוצתי: כל צומת מישהו אחר מחליט
   wordSeed: 0,           // הזרע של משחק המילים
+  skipSilence: true,     // לדלג על השקט בהתחלה ובסוף של כל הקלטה
+  mode: "story",         // "story" = סיפור כתוב, "words" = סיפור מהמילים שלכם
 };
 
 let dbPromise = null;

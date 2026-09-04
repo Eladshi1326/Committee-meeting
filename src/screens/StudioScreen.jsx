@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Square, Play, Trash2, Home, ChevronLeft, ChevronRight, Upload, Pencil, AlertTriangle } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, fmtSecs, countLines, blindVoice } from "../lib/script.js";
-import { pickMime, playRec } from "../lib/audio.js";
+import { pickMime, playRec, resumeCtx } from "../lib/audio.js";
 import { Avatar, SceneLabel, Toggle } from "../components/ui.jsx";
 
 const MAX_SECONDS = 120;
@@ -118,6 +118,7 @@ export default function StudioScreen({
     }
     try {
       stopPreview();
+      resumeCtx();
       let stream = liveStream();
       if (!stream) {
         setState("prep");

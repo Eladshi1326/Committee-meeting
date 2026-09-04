@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Square, Play, Trash2, Home, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { T } from "../theme.js";
 import { fmtSecs } from "../lib/script.js";
-import { pickMime, playRec } from "../lib/audio.js";
+import { pickMime, playRec, resumeCtx } from "../lib/audio.js";
 
 const MAX_SECONDS = 30;
 
@@ -95,6 +95,7 @@ export default function WordStudio({ tasks, playerName, playerIndex, recordings,
     }
     try {
       stopPreview();
+      resumeCtx();
       let stream = liveStream();
       if (!stream) { setState("prep"); stream = await navigator.mediaDevices.getUserMedia({ audio: true }); streamRef.current = stream; }
       const mime = pickMime();
