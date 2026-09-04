@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Play, RotateCcw, Volume2, ChevronLeft } from "lucide-react";
 import { T } from "../theme.js";
 import { playRec } from "../lib/audio.js";
-import { RULE_PARTS, buildStory, ruleRecId, activePlayers } from "../data/wordgame.js";
+import { RULE_PARTS, buildStory, ruleRecId, activeRoster } from "../data/wordgame.js";
 
 // כמה זמן להשאיר חתיכה בלי הקלטה על המסך
 const TEXT_MS = 2200;
@@ -30,18 +30,19 @@ function toBeats(parts) {
   return beats;
 }
 
-export default function WordPlay({ playerCount, players, recordings, seed, onNewStory, onExit, audioRef, narrator }) {
-  const readerName = narrator >= 0 && players && players[narrator] ? players[narrator] : null;
+export default function WordPlay({ roster, recordings, seed, onNewStory, onExit, audioRef, narrator }) {
+  const players = (roster || []).map((r) => r.name);
+  const readerName = narrator >= 0 && roster && roster[narrator] ? roster[narrator].name : null;
   const [phase, setPhase] = useState("intro"); // intro | rules | story | end
   const [ri, setRi] = useState(0);
   const [ci, setCi] = useState(0);
   const [pi, setPi] = useState(0);
 
-  const story = useMemo(() => buildStory(playerCount, recordings, seed, players, narrator), [playerCount, recordings, seed, players, narrator]);
+  const story = useMemo(() => buildStory(roster, recordings, seed, narrator), [roster, recordings, seed, narrator]);
   const rules = useMemo(() => {
-    const act = activePlayers(playerCount, narrator);
-    return RULE_PARTS.map((r, i) => ({ ...r, recId: ruleRecId(r.id), player: act[i % act.length] }));
-  }, [playerCount, narrator]);
+    const act = activeRoster(roster, narrator);
+    return RULE_PARTS.map((r, i) => ({ ...r, recId: ruleRecId(r.id), name: (act[i % act.length] || {}).name }));
+  }, [roster, narrator]);
 
   const chapter = story[ci] || null;
   const beats = useMemo(() => (chapter ? toBeats(chapter.parts) : []), [chapter]);
@@ -184,7 +185,7 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
 
   // --- rules ---
   if (phase === "rules") {
-    const who = (players && players[rule ? rule.player : 0]) || "מישהו";
+    const who = (rule && rule.name) || "מישהו";
     const has = rule && recordings[rule.recId];
     return shell(
       <>
@@ -209,7 +210,7 @@ export default function WordPlay({ playerCount, players, recordings, seed, onNew
   }
 
   // --- story ---
-  const who = part && part.player != null ? (players && players[part.player]) || "מישהו" : null;
+  const who = part && part.player != null ? ((roster || []).find((r) => r.id === part.player) || {}).name || "מישהו" : null;
   return shell(
     <>
       <div onClick={advance} className="flex-1 vg-scroll flex flex-col justify-center px-5 py-6 select-none">

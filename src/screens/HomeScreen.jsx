@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import {
   Mic, Play, Check, FileText, Settings, Download, ChevronDown, ChevronUp,
-  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle, Dice5, Volume2, ArrowUp,
+  Users, Plus, Minus, ArrowLeft, Sparkles, Shuffle, Pencil, Lock, AlertTriangle, Dice5, Volume2, ArrowUp, X,
 } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, countLines, endingIds, flattenLines } from "../lib/script.js";
@@ -33,8 +33,15 @@ function StepDots({ step }) {
 }
 
 /* ---------------- שלב 1: כמה אתם ---------------- */
-function PlayersStep({ players, splitMode, onDone, adultUnlocked, onUnlockAdult }) {
-  const [names, setNames] = useState(players.length ? players.slice() : [""]);
+function newId() {
+  return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function PlayersStep({ roster, splitMode, onDone, adultUnlocked, onUnlockAdult }) {
+  // כל שחקן נושא מזהה יציב, כדי שמחיקה מהאמצע לא תזיז הקלטות של אחרים
+  const [names, setNames] = useState(
+    (roster && roster.length) ? roster.map((r) => ({ ...r })) : [{ id: newId(), name: "" }]
+  );
   const [mode, setMode] = useState(splitMode || "line");
   const [bump, setBump] = useState(0);
   const [asking, setAsking] = useState(false);
@@ -59,13 +66,18 @@ function PlayersStep({ players, splitMode, onDone, adultUnlocked, onUnlockAdult 
     setBump((b) => b + 1);
     setNames((prev) => {
       const next = prev.slice(0, c);
-      while (next.length < c) next.push("");
+      while (next.length < c) next.push({ id: newId(), name: "" });
       return next;
     });
   }
 
+  function removeAt(i) {
+    setBump((b) => b + 1);
+    setNames((prev) => (prev.length > 1 ? prev.filter((_, k) => k !== i) : prev));
+  }
+
   function next() {
-    const clean = names.map((n, i) => n.trim() || "שחקן " + (i + 1));
+    const clean = names.map((e, i) => ({ id: e.id, name: (e.name || "").trim() || "שחקן " + (i + 1) }));
     onDone(count > 1 ? clean : [], mode);
   }
 
@@ -152,8 +164,8 @@ function PlayersStep({ players, splitMode, onDone, adultUnlocked, onUnlockAdult 
 
       {count > 1 && (
         <section className="vg-stagger flex flex-col gap-2 rounded-2xl p-3 flex-1 vg-scroll" style={{ background: T.surface, border: "1px solid " + T.line }}>
-          {names.map((n, i) => (
-            <div key={i} className="flex items-center gap-2">
+          {names.map((e, i) => (
+            <div key={e.id} className="flex items-center gap-2">
               <div
                 className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
                 style={{ background: T.raised, color: T.lamp }}
@@ -161,12 +173,21 @@ function PlayersStep({ players, splitMode, onDone, adultUnlocked, onUnlockAdult 
                 {i + 1}
               </div>
               <input
-                value={n}
-                onChange={(e) => setNames((p) => p.map((x, j) => (j === i ? e.target.value : x)))}
+                value={e.name}
+                onChange={(ev) => setNames((p) => p.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))}
                 placeholder={"שחקן " + (i + 1)}
                 className="flex-1 min-w-0 rounded-xl px-3 py-2 text-base outline-none"
                 style={{ background: T.bg, color: T.ink, border: "1px solid " + T.line }}
               />
+              <button
+                onClick={() => removeAt(i)}
+                disabled={names.length <= 1}
+                className="vg-press shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: T.raised, color: names.length <= 1 ? T.dim : T.muted }}
+                aria-label={"להסיר את " + (e.name || "שחקן " + (i + 1))}
+              >
+                <X size={15} />
+              </button>
             </div>
           ))}
         </section>
@@ -348,7 +369,7 @@ export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
   setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap, mode, onSetMode, introFor,
-  narrator, onSetNarrator,
+  narrator, onSetNarrator, roster,
   wordProgress, wordTasksFor, wordTaskCount, onWordStudio, onWordPlay,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
@@ -394,7 +415,7 @@ export default function HomeScreen({
   if (step === "players") {
     return shell(
       <PlayersStep
-        players={players || []}
+        roster={roster || []}
         splitMode={splitMode}
         adultUnlocked={adultUnlocked}
         onUnlockAdult={onUnlockAdult}
@@ -492,6 +513,29 @@ export default function HomeScreen({
                     </button>
                   );
                 })}
+
+                {narrator >= 0 && players[narrator] && (() => {
+                  const t = wordTaskCount ? wordTaskCount(narrator) : 0;
+                  const g = wordTasksFor ? wordTasksFor(narrator) : 0;
+                  return (
+                    <button
+                      onClick={() => onWordStudio(narrator)}
+                      className="vg-press w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-right"
+                      style={{ background: T.bg, border: "1px dashed " + T.line }}
+                    >
+                      <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: T.surface, color: T.muted }}>
+                        <Volume2 size={15} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold truncate" style={{ color: T.muted }}>{players[narrator]}</div>
+                        <div className="text-xs" style={{ color: T.dim }}>
+                          מקריא · לא חייב להקליט{g > 0 ? " · הקליט " + g + " מתוך " + t : ""}
+                        </div>
+                      </div>
+                      <Mic size={16} style={{ color: T.dim }} />
+                    </button>
+                  );
+                })()}
               </div>
             </>
           )}

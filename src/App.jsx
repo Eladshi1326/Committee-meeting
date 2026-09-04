@@ -5,6 +5,10 @@ import { storiesFor, getStory, isAdult } from "./data/stories.js";
 import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, personalizeText, buildNameMap } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
 import { buildPlayerTasks, storyProgress } from "./data/wordgame.js";
+
+function freshId() {
+  return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
 import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS, analyzeTrim, resumeCtx } from "./lib/audio.js";
 import { DEFAULT_SETTINGS, hasIDB, kvGet, kvSet, kvDel, recSet, recDel, recClear, recAll } from "./lib/storage.js";
 import HomeScreen from "./screens/HomeScreen.jsx";
@@ -190,6 +194,14 @@ export default function App() {
 
   const narratorIdx = typeof settings.narrator === "number" ? settings.narrator : -1;
 
+  // מזהה יציב לכל שחקן. משחקים ישנים שאין להם מזהים מקבלים p0,p1,...
+  // כדי שההקלטות שכבר קיימות ימשיכו להתאים.
+  const roster = useMemo(() => {
+    const names = settings.players || [];
+    const ids = settings.playerIds || [];
+    return names.map((name, i) => ({ id: ids[i] || "p" + i, name }));
+  }, [settings.players, settings.playerIds]);
+
   const newWordStory = useCallback(() => {
     setSettings((prev) => {
       const next = { ...prev, wordSeed: newSeed() };
@@ -198,9 +210,18 @@ export default function App() {
     });
   }, [storageOk]);
 
-  const setParty = useCallback((names, mode) => {
+  // names מגיע כמערך של { id, name } כדי שמחיקה מהאמצע לא תזיז הקלטות
+  const setParty = useCallback((entries, mode) => {
+    const list = (entries || []).map((e) => (typeof e === "string" ? { id: freshId(), name: e } : e));
     setSettings((prev) => {
-      const next = { ...prev, players: names, splitMode: mode, splitSeed: newSeed() };
+      const next = {
+        ...prev,
+        players: list.map((e) => e.name),
+        playerIds: list.map((e) => e.id),
+        splitMode: mode,
+        splitSeed: newSeed(),
+      };
+      if (prev.narrator >= list.length) next.narrator = -1;
       if (storageOk) { kvSet("settings", next).catch(() => {}); }
       return next;
     });
@@ -415,7 +436,7 @@ export default function App() {
           />
         ) : screen === "wordstudio" ? (
           <WordStudio
-            tasks={buildPlayerTasks(activePlayer, Math.max(2, players.length), narratorIdx)}
+            tasks={buildPlayerTasks(roster, narratorIdx, activePlayer)}
             playerName={players[activePlayer] || "שחקן " + (activePlayer + 1)}
             playerIndex={activePlayer}
             recordings={recordings}
@@ -426,8 +447,7 @@ export default function App() {
           />
         ) : screen === "wordplay" ? (
           <WordPlay
-            playerCount={Math.max(2, players.length)}
-            players={players}
+            roster={roster}
             narrator={narratorIdx}
             recordings={recordings}
             seed={settings.wordSeed || 1}
@@ -489,9 +509,10 @@ export default function App() {
             setupDone={!!settings.setupDone}
             onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}
-            wordProgress={party ? storyProgress(players.length, recordings, narratorIdx) : null}
-            wordTasksFor={(p) => buildPlayerTasks(p, Math.max(2, players.length), narratorIdx).filter((t) => recordings[t.id]).length}
-            wordTaskCount={(p) => buildPlayerTasks(p, Math.max(2, players.length), narratorIdx).length}
+            roster={roster}
+            wordProgress={party ? storyProgress(roster, recordings, narratorIdx) : null}
+            wordTasksFor={(i) => buildPlayerTasks(roster, narratorIdx, i).filter((t) => recordings[t.id]).length}
+            wordTaskCount={(i) => buildPlayerTasks(roster, narratorIdx, i).length}
             onWordStudio={(p) => { setActivePlayer(p); setScreen("wordstudio"); }}
             onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); resumeCtx(); newWordStory(); setScreen("wordplay"); }}
             onStudio={(i) => {

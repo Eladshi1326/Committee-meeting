@@ -195,72 +195,72 @@ export const CHAPTERS = SET_A.chapters;
 export const RECORD_LIMIT = 20;
 
 // ---- בניית מה שצריך להקליט ----
-// כל שחקן מקליט את כל המילים (כדי שיהיה מאגר קולות מגוון) ואת החלק שלו בחוקים.
-// המקריא לא מקליט כלום ולא מופיע בסיפור. הוא רק קורא בקול.
-export function activePlayers(playerCount, narrator) {
-  const out = [];
-  for (let i = 0; i < Math.max(1, playerCount); i++) if (i !== narrator) out.push(i);
-  return out.length ? out : [0];
+// roster = [{ id, name }]. ה-id יציב ולא משתנה כשמוחקים שחקן מהאמצע,
+// אחרת ההקלטות של כל מי שאחריו היו נדבקות לאדם הלא נכון.
+
+export function activeRoster(roster, narrator) {
+  const r = (roster || []).filter((x) => x && x.id);
+  const out = r.filter((_, i) => i !== narrator);
+  return out.length ? out : r;
 }
 
-export function ruleIdsFor(playerIndex, playerCount, narrator) {
-  const act = activePlayers(playerCount, narrator);
-  const k = act.indexOf(playerIndex);
+export function ruleIdsFor(roster, narrator, index) {
+  const act = activeRoster(roster, narrator);
+  const me = (roster || [])[index];
+  const k = me ? act.findIndex((x) => x.id === me.id) : -1;
   if (k < 0) return [];
   return RULE_PARTS.filter((_, i) => i % act.length === k).map((r) => r.id);
 }
 
-export function wordRecId(playerIndex, promptId) {
-  return "wg_p" + playerIndex + "_" + promptId;
+export function wordRecId(playerId, promptId) {
+  return "wg_" + playerId + "_" + promptId;
 }
 
 export function ruleRecId(ruleId) {
   return "wg_" + ruleId;
 }
 
-// רשימת ההקלטות של שחקן אחד, בפורמט שהאולפן הקיים יודע להציג
-export function buildPlayerTasks(playerIndex, playerCount, narrator) {
-  if (playerIndex === narrator) return [];
+// מה שחקן אחד צריך להקליט. המקריא מקבל את המילים בלבד, בלי חוקים, וזה רשות.
+export function buildPlayerTasks(roster, narrator, index) {
+  const me = (roster || [])[index];
+  if (!me) return [];
   const out = [{
-    id: wordRecId(playerIndex, NAME_PROMPT.id),
-    kind: "name",
-    cat: NAME_PROMPT.id,
-    speaker: NAME_PROMPT.id,
-    text: NAME_PROMPT.prompt,
-    hint: NAME_PROMPT.hint,
-    label: NAME_PROMPT.label,
+    id: wordRecId(me.id, NAME_PROMPT.id),
+    kind: "name", cat: NAME_PROMPT.id, speaker: NAME_PROMPT.id,
+    text: NAME_PROMPT.prompt, hint: NAME_PROMPT.hint, label: NAME_PROMPT.label,
   }];
   WORD_PROMPTS.forEach((p) => out.push({
-    id: wordRecId(playerIndex, p.id),
-    kind: "word",
-    cat: p.id,
-    speaker: p.id,
-    text: p.prompt,
-    hint: p.hint,
-    label: p.label,
+    id: wordRecId(me.id, p.id),
+    kind: "word", cat: p.id, speaker: p.id,
+    text: p.prompt, hint: p.hint, label: p.label,
   }));
-  ruleIdsFor(playerIndex, playerCount, narrator).forEach((rid) => {
+  ruleIdsFor(roster, narrator, index).forEach((rid) => {
     const r = RULE_PARTS.find((x) => x.id === rid);
     out.push({
-      id: ruleRecId(rid),
-      kind: "rule",
-      cat: "rule",
-      speaker: "rule",
-      text: r.text,
-      hint: "תקריא בדיוק ככה",
-      label: "חוק",
+      id: ruleRecId(rid), kind: "rule", cat: "rule", speaker: "rule",
+      text: r.text, hint: "תקריא בדיוק ככה", label: "חוק",
     });
   });
   return out;
 }
 
-export function allTasks(playerCount, narrator) {
-  const n = Math.max(1, playerCount);
+// מה שחייבים כדי לשחק — בלי המקריא
+export function allTasks(roster, narrator) {
   const out = [];
-  activePlayers(n, narrator).forEach((i) => out.push(...buildPlayerTasks(i, n, narrator)));
-  // כל חוק מוקלט פעם אחת בלבד
   const seen = new Set();
-  return out.filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)));
+  (roster || []).forEach((_, i) => {
+    if (i === narrator) return;
+    buildPlayerTasks(roster, narrator, i).forEach((t) => {
+      if (!seen.has(t.id)) { seen.add(t.id); out.push(t); }
+    });
+  });
+  return out;
+}
+
+export function storyProgress(roster, recordings, narrator) {
+  const tasks = allTasks(roster, narrator);
+  const done = tasks.filter((t) => recordings[t.id]).length;
+  return { total: tasks.length, done };
 }
 
 // ---- הרכבת הסיפור ----
@@ -274,12 +274,11 @@ function seeded(seed) {
   };
 }
 
-// בונה סיפור: בוחר ערכה, ממלא כל מקום בהקלטה של מישהו, ומשבץ שמות אמיתיים.
-// שני כללים: אותה הקלטה לא חוזרת עד שכל הקטגוריה נוצלה, ומי שנשמע הכי מעט
-// מקבל עדיפות — כדי שכולם יישמעו כמה שיותר שווה.
-export function buildStory(playerCount, recordings, seed, players, narrator) {
-  const n = Math.max(1, playerCount);
-  const act = activePlayers(n, narrator);
+// בוחר ערכה, ממלא כל מקום בהקלטה של מישהו, ומשבץ שמות אמיתיים.
+// שלושה כללים: אף הקלטה לא נשמעת פעמיים, מי שנשמע הכי מעט מקבל עדיפות,
+// והמקריא בחוץ — אלא אם הוא בכל זאת הקליט.
+export function buildStory(roster, recordings, seed, narrator) {
+  const all = (roster || []).filter((x) => x && x.id);
   const rnd = seeded(seed || 1);
   const shuffle = (arr) => {
     const a = arr.slice();
@@ -290,38 +289,36 @@ export function buildStory(playerCount, recordings, seed, players, narrator) {
     return a;
   };
 
+  const narratorPlayed = narrator >= 0 && all[narrator] &&
+    WORD_PROMPTS.some((w) => recordings[wordRecId(all[narrator].id, w.id)]);
+  const act = narratorPlayed ? all : activeRoster(roster, narrator);
+  const n = Math.max(1, act.length);
+
   const set = STORY_SETS[Math.floor(rnd() * STORY_SETS.length)] || STORY_SETS[0];
 
   const pools = {};
   WORD_PROMPTS.forEach((w) => {
     const ids = [];
-    act.forEach((i) => {
-      const id = wordRecId(i, w.id);
-      if (recordings[id]) ids.push({ id, player: i });
+    act.forEach((pl) => {
+      const id = wordRecId(pl.id, w.id);
+      if (recordings[id]) ids.push({ id, player: pl.id, name: pl.name });
     });
     pools[w.id] = shuffle(ids);
   });
 
-  const heard = new Array(n).fill(0);   // כמה פעמים כל שחקן נשמע
-  const named = new Array(n).fill(0);   // כמה פעמים כל שחקן הוזכר בשם
+  const heard = {};
+  const named = {};
+  act.forEach((pl) => { heard[pl.id] = 0; named[pl.id] = 0; });
 
   const allRecs = [];
   WORD_PROMPTS.forEach((w) => (pools[w.id] || []).forEach((r) => allRecs.push(r)));
   const usedIds = new Set();
 
-  // אף מילה לא נשמעת פעמיים. אם הקטגוריה נגמרה, לוקחים הקלטה שעוד לא
-  // הושמעה מקטגוריה אחרת — מילה לא צפויה עדיפה על מילה חוזרת.
   const take = (cat) => {
     let list = (pools[cat] || []).filter((r) => !usedIds.has(r.id));
     let borrowed = false;
-    if (!list.length) {
-      list = allRecs.filter((r) => !usedIds.has(r.id));
-      borrowed = true;
-    }
-    if (!list.length) {
-      list = (pools[cat] && pools[cat].length) ? pools[cat] : allRecs;
-      borrowed = !(pools[cat] && pools[cat].length);
-    }
+    if (!list.length) { list = allRecs.filter((r) => !usedIds.has(r.id)); borrowed = true; }
+    if (!list.length) { list = (pools[cat] && pools[cat].length) ? pools[cat] : allRecs; }
     if (!list.length) return null;
     let best = 0;
     for (let i = 1; i < list.length; i++) {
@@ -336,15 +333,13 @@ export function buildStory(playerCount, recordings, seed, players, narrator) {
 
   const takeName = () => {
     let best = act[0];
-    act.forEach((i) => { if (named[i] < named[best]) best = i; });
-    named[best]++;
-    const nm = (players && players[best]) || "שחקן " + (best + 1);
-    const rid = wordRecId(best, "myname");
-    return { name: nm, player: best, recId: recordings[rid] ? rid : null };
+    act.forEach((pl) => { if (named[pl.id] < named[best.id]) best = pl; });
+    named[best.id]++;
+    const rid = wordRecId(best.id, "myname");
+    return { name: best.name, player: best.id, recId: recordings[rid] ? rid : null };
   };
 
-  // אף מילה לא חוזרת: אם אין מספיק הקלטות לכל המקומות, מקצרים את הסיפור
-  // במקום להשמיע פעמיים את אותו דבר.
+  // אף מילה לא חוזרת: אם אין מספיק הקלטות, מקצרים את הסיפור
   let chapters = set.chapters.filter((c) => n >= c.min);
   const budget = allRecs.length;
   let spent = 0;
@@ -373,15 +368,10 @@ export function buildStory(playerCount, recordings, seed, players, narrator) {
   return built;
 }
 
-// לבדיקה: כמה פעמים כל שחקן נשמע בסיפור
-export function voiceBalance(story, playerCount) {
-  const c = new Array(Math.max(1, playerCount)).fill(0);
-  story.forEach((ch) => ch.parts.forEach((p) => { if (p.recId != null && p.player != null) c[p.player]++; }));
+// לבדיקה: כמה פעמים כל שחקן נשמע
+export function voiceBalance(story, roster) {
+  const c = {};
+  (roster || []).forEach((r) => { c[r.id] = 0; });
+  story.forEach((ch) => ch.parts.forEach((p) => { if (p.recId && p.player != null && c[p.player] != null) c[p.player]++; }));
   return c;
-}
-
-export function storyProgress(playerCount, recordings, narrator) {
-  const tasks = allTasks(playerCount, narrator);
-  const done = tasks.filter((t) => recordings[t.id]).length;
-  return { total: tasks.length, done };
 }
