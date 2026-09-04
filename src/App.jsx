@@ -4,12 +4,13 @@ import { CHARS } from "./data/script.js";
 import { storiesFor, getStory, isAdult } from "./data/stories.js";
 import { flattenLines, updateLineText, validateScript, shuffleLines, newSeed, personalizeScript, personalizeText, buildNameMap } from "./lib/script.js";
 import { assignLines, playerProgress } from "./lib/party.js";
-import { buildPlayerTasks, storyProgress, narratorTasks, narratorProgress, getSet, pickSetId, nextSetId } from "./data/wordgame.js";
+import { buildPlayerTasks, storyProgress, narratorTasks, narratorProgress, getSet, pickSetId, STORY_SETS } from "./data/wordgame.js";
 
 function freshId() {
   return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 import { makeSilentWav, unlockAudio, blobToDataUrl, dataUrlToBlob, isStandalone, isIOS, analyzeTrim, resumeCtx } from "./lib/audio.js";
+import { ttsSupported, onVoices, isHebrew, warmTTS, stopTTS } from "./lib/tts.js";
 import { DEFAULT_SETTINGS, hasIDB, kvGet, kvSet, kvDel, recSet, recDel, recClear, recAll } from "./lib/storage.js";
 import HomeScreen from "./screens/HomeScreen.jsx";
 import StudioScreen from "./screens/StudioScreen.jsx";
@@ -18,6 +19,7 @@ import ScriptScreen from "./screens/ScriptScreen.jsx";
 import MoreScreen from "./screens/MoreScreen.jsx";
 import WordStudio from "./screens/WordStudio.jsx";
 import WordPlay from "./screens/WordPlay.jsx";
+import RecordingsScreen from "./screens/RecordingsScreen.jsx";
 
 const BACKUP_VERSION = 1;
 
@@ -34,7 +36,7 @@ export default function App() {
   const [recordings, setRecordings] = useState({});
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [endings, setEndings] = useState([]);
-  const [screen, setScreen] = useState("home"); // home | studio | play | script | more | wordstudio | wordplay
+  const [screen, setScreen] = useState("home"); // home | studio | play | script | more | recordings | wordstudio | wordplay
   const [activePlayer, setActivePlayer] = useState(0);
   const [studioIdx, setStudioIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
@@ -44,6 +46,7 @@ export default function App() {
   const [installed, setInstalled] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
+  const [voices, setVoices] = useState([]);
 
   const recRef = useRef({});
   const settingsRef = useRef(DEFAULT_SETTINGS);
@@ -72,6 +75,9 @@ export default function App() {
       window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
+
+  // רשימת הקולות של המכשיר להקראה אוטומטית. נטענת בעצלתיים, לכן מאזינים.
+  useEffect(() => onVoices(setVoices), []);
 
   // טעינה מהאחסון
   useEffect(() => {
@@ -139,6 +145,22 @@ export default function App() {
     if (storageOk) { try { await recDel(id); } catch (e) { /* ignore */ } }
   }, [storageOk]);
 
+  // מחיקה של קבוצה אחת (שחקן, ערכה, סיפור) בלי לגעת בשאר
+  const deleteMany = useCallback(async (ids) => {
+    const list = (ids || []).filter((id) => recRef.current[id]);
+    if (!list.length) return;
+    const next = { ...recRef.current };
+    list.forEach((id) => {
+      try { URL.revokeObjectURL(next[id].url); } catch (e) { /* ignore */ }
+      delete next[id];
+    });
+    recRef.current = next;
+    setRecordings(next);
+    if (storageOk) {
+      for (const id of list) { try { await recDel(id); } catch (e) { /* ignore */ } }
+    }
+  }, [storageOk]);
+
   const clearRecordings = useCallback(async () => {
     Object.keys(recRef.current).forEach((id) => {
       try { URL.revokeObjectURL(recRef.current[id].url); } catch (e) { /* ignore */ }
@@ -194,6 +216,10 @@ export default function App() {
 
   const narratorIdx = typeof settings.narrator === "number" ? settings.narrator : -1;
 
+  // הקראה אוטומטית זמינה רק אם יש במכשיר קול עברי
+  const heVoices = useMemo(() => voices.filter(isHebrew), [voices]);
+  const ttsOk = ttsSupported() && heVoices.length > 0;
+
   // מזהה יציב לכל שחקן. משחקים ישנים שאין להם מזהים מקבלים p0,p1,...
   // כדי שההקלטות שכבר קיימות ימשיכו להתאים.
   const roster = useMemo(() => {
@@ -213,7 +239,7 @@ export default function App() {
 
   // הערכה של המקריא: ננעלת ברגע שבוחרים מקריא, כדי שהוא יקליט בדיוק את הסיפור שיישמע.
   // בלי מקריא הערכה מוגרלת מחדש בכל סיפור.
-  const wordSetId = narratorIdx >= 0 && getSet(settings.wordSetId) ? settings.wordSetId : null;
+  const wordSetId = getSet(settings.wordSetId) ? settings.wordSetId : null;
 
   const setNarrator = useCallback((i) => {
     setSettings((prev) => {
@@ -226,9 +252,10 @@ export default function App() {
     setActivePlayer(0);
   }, [storageOk]);
 
-  const changeWordSet = useCallback(() => {
+  // בחירת ערכה: id מסוים, או null = להגריל בכל משחק
+  const pickWordSet = useCallback((id) => {
     setSettings((prev) => {
-      const next = { ...prev, wordSetId: nextSetId(prev.wordSetId), wordSeed: newSeed() };
+      const next = { ...prev, wordSetId: getSet(id) ? id : null, wordSeed: newSeed() };
       if (storageOk) { kvSet("settings", next).catch(() => {}); }
       return next;
     });
@@ -390,6 +417,7 @@ export default function App() {
     const onPop = () => {
       const a = audioRef.current;
       if (a) { try { a.pause(); } catch (e) { /* ignore */ } }
+      stopTTS();
       setScreen("home");
     };
     window.addEventListener("popstate", onPop);
@@ -422,12 +450,14 @@ export default function App() {
     // בתוך לחיצה של המשתמש: "פותחים" את נגן האודיו כדי שהשורות ינוגנו אוטומטית גם ב-iOS
     unlockAudio(audioRef.current, silentRef.current);
     resumeCtx();
+    if (settings.tts && ttsOk) warmTTS();
     setScreen("play");
   }
 
   function exitPlay() {
     const a = audioRef.current;
     if (a) { try { a.pause(); } catch (e) { /* ignore */ } }
+    stopTTS();
     setScreen("home");
   }
 
@@ -495,6 +525,10 @@ export default function App() {
             narrator={narratorIdx}
             setId={wordSetId}
             speed={settings.textSpeed || 1}
+            tts={!!settings.tts && ttsOk}
+            ttsVoice={settings.ttsVoice || ""}
+            ttsRate={settings.ttsRate || 1}
+            live={!!settings.liveRead}
             recordings={recordings}
             seed={settings.wordSeed || 1}
             onNewStory={newWordStory}
@@ -503,10 +537,22 @@ export default function App() {
           />
         ) : screen === "script" ? (
           <ScriptScreen script={script} onApply={applyScript} onReset={resetScript} onBack={() => setScreen("home")} />
+        ) : screen === "recordings" ? (
+          <RecordingsScreen
+            recordings={recordings}
+            roster={roster}
+            onDeleteMany={deleteMany}
+            onClearAll={clearRecordings}
+            onBack={() => setScreen("more")}
+            audioRef={audioRef}
+          />
         ) : screen === "more" ? (
           <MoreScreen
             settings={settings}
             onSetSetting={setSetting}
+            voices={voices}
+            heVoices={heVoices}
+            ttsSupported={ttsSupported()}
             onToggleBlind={toggleBlind}
             onReshuffle={reshuffleStudio}
             adultUnlocked={!!settings.adultUnlocked}
@@ -520,6 +566,7 @@ export default function App() {
             exporting={exporting}
             importMsg={importMsg}
             onClearRecordings={clearRecordings}
+            onManageRecordings={() => setScreen("recordings")}
             onResetEndings={resetEndings}
             onResetScript={resetScript}
             storageOk={storageOk}
@@ -552,9 +599,16 @@ export default function App() {
             onSetMode={(m) => setSetting("mode", m)}
             narrator={narratorIdx}
             onSetNarrator={setNarrator}
+            tts={!!settings.tts}
+            ttsOk={ttsOk}
+            onSetTts={(v) => { if (!v) stopTTS(); setSetting("tts", !!v); }}
             narratorSet={getSet(wordSetId)}
             narratorProgress={narratorIdx >= 0 ? narratorProgress(roster, narratorIdx, recordings, wordSetId) : null}
-            onChangeWordSet={changeWordSet}
+            onPickWordSet={pickWordSet}
+            wordSets={STORY_SETS}
+            wordSetId={wordSetId}
+            live={!!settings.liveRead}
+            onSetLive={(v) => setSetting("liveRead", !!v)}
             setupDone={!!settings.setupDone}
             onSetupDone={() => setSetting("setupDone", true)}
             onPlayer={(p) => { setActivePlayer(p); setStudioIdx(0); setScreen("studio"); }}
@@ -563,7 +617,7 @@ export default function App() {
             wordTasksFor={(i) => buildPlayerTasks(roster, narratorIdx, i).filter((t) => recordings[t.id]).length}
             wordTaskCount={(i) => buildPlayerTasks(roster, narratorIdx, i).length}
             onWordStudio={(p) => { setActivePlayer(p); setScreen("wordstudio"); }}
-            onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); resumeCtx(); newWordStory(); setScreen("wordplay"); }}
+            onWordPlay={() => { unlockAudio(audioRef.current, silentRef.current); resumeCtx(); if (settings.tts && ttsOk) warmTTS(); newWordStory(); setScreen("wordplay"); }}
             onStudio={(i) => {
               const src = lines[i];
               const j = src ? studioLines.findIndex((l) => l.id === src.id) : 0;

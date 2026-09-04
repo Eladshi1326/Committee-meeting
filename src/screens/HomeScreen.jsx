@@ -387,7 +387,9 @@ export default function HomeScreen({
   script, chars, lines, recordings, endings, storageOk, storageWarn, canInstall, blind,
   stories, storyId, onSelectStory, players, splitMode, playerStats, onSetParty, onPlayer,
   setupDone, onSetupDone, adultUnlocked, onUnlockAdult, nameMap, mode, onSetMode, introFor,
-  narrator, onSetNarrator, roster, narratorSet, narratorProgress, onChangeWordSet,
+  narrator, onSetNarrator, roster, narratorSet, narratorProgress,
+  wordSets, wordSetId, onPickWordSet,
+  tts, ttsOk, onSetTts, live, onSetLive,
   wordProgress, wordTasksFor, wordTaskCount, onWordStudio, onWordPlay,
   onStudio, onPlay, onScript, onMore, onInstall,
 }) {
@@ -461,6 +463,15 @@ export default function HomeScreen({
     const total = wordProgress ? wordProgress.total : 0;
     const got = wordProgress ? wordProgress.done : 0;
     const allIn = total > 0 && got === total;
+    // מי מקריא: הטלפון, מישהו שקורא בשידור חי, אף אחד, או שחקן שמקליט מראש
+    const robotOn = !!tts && !!ttsOk && narrator < 0;
+    const liveOn = !!live && !robotOn && narrator < 0;
+    const silentOn = narrator < 0 && !robotOn && !liveOn;
+    const pickReader = (mode, i) => {
+      onSetTts(mode === "robot");
+      onSetLive(mode === "live");
+      onSetNarrator(mode === "person" ? i : -1);
+    };
     return shell(
       <div className="vg-slide flex flex-col flex-1 min-h-0 gap-3">
         <div className="shrink-0 flex items-center justify-between text-xs" style={{ color: T.dim }}>
@@ -503,6 +514,42 @@ export default function HomeScreen({
                 <div className="mt-2"><ProgressBar pct={total ? (got / total) * 100 : 0} /></div>
               </div>
 
+              <div className="rounded-3xl p-4" style={{ background: T.surface, border: "1px solid " + T.line }}>
+                <div className="text-sm" style={{ color: T.ink }}>איזה סיפור</div>
+                <div className="text-xs mt-0.5 leading-relaxed" style={{ color: T.dim }}>
+                  {wordSetId ? "הסיפור קבוע. המילים מתערבבות מחדש בכל השמעה, אבל זה תמיד יהיה הסיפור הזה."
+                    : "בכל השמעה הטלפון מגריל אחד מהסיפורים. אפשר לבחור אחד קבוע."}
+                  {narrator >= 0 && " המקריא מקליט את הסיפור שנבחר פה."}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => onPickWordSet(null)}
+                    className="vg-press rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1"
+                    style={{
+                      background: !wordSetId ? T.lamp : T.raised,
+                      color: !wordSetId ? T.onLamp : T.muted,
+                      border: "1px solid " + (!wordSetId ? T.lamp : T.line),
+                    }}
+                  >
+                    <Shuffle size={12} /> אקראי
+                  </button>
+                  {(wordSets || []).map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => onPickWordSet(st.id)}
+                      className="vg-press rounded-full px-3 py-1.5 text-xs font-bold"
+                      style={{
+                        background: wordSetId === st.id ? T.lamp : T.raised,
+                        color: wordSetId === st.id ? T.onLamp : T.muted,
+                        border: "1px solid " + (wordSetId === st.id ? T.lamp : T.line),
+                      }}
+                    >
+                      {st.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {(() => {
                 const nt = narratorProgress ? narratorProgress.total : 0;
                 const ng = narratorProgress ? narratorProgress.done : 0;
@@ -539,11 +586,6 @@ export default function HomeScreen({
                       </div>
                       <Mic size={16} className="relative" style={{ color: nFull ? T.ok : nOpen ? T.lamp : T.dim }} />
                     </button>
-                    {onChangeWordSet && ng === 0 && (
-                      <button onClick={onChangeWordSet} className="self-start text-xs py-1 flex items-center gap-1" style={{ color: T.muted }}>
-                        <Shuffle size={11} /> סיפור אחר למקריא
-                      </button>
-                    )}
                   </div>
                 ) : null;
                 // כשכולם סיימו, המקריא הוא הצעד הבא — אז הכרטיס שלו עולה למעלה
@@ -590,16 +632,48 @@ export default function HomeScreen({
           <section className="shrink-0 rounded-3xl px-4 py-3" style={{ background: T.surface, border: "1px solid " + T.line }}>
             <div className="text-sm mb-1" style={{ color: T.ink }}>מי מקריא את הסיפור?</div>
             <div className="text-xs mb-2 leading-relaxed" style={{ color: T.dim }}>
-              המקריא <span style={{ color: T.lamp }}>לא מקליט מילים</span> ולא מופיע בסיפור. אחרי שכולם מסיימים הוא מקליט את כל קטעי הסיפור בסדר אקראי, ובהשמעה שומעים אותו מספר.
+              {robotOn ? (
+                <>הטלפון קורא את הטקסט בקול. המילים והשמות שהקלטתם נשמעים <span style={{ color: T.lamp }}>בקול שלכם</span>, אף פעם לא בקול של הטלפון.</>
+              ) : liveOn ? (
+                <>אחד מכם קורא בקול מהמסך. הטקסט <span style={{ color: T.lamp }}>מחכה להקשה</span> אחרי כל משפט, אז אפשר לקרוא בקצב שלכם. ההקלטות מתנגנות לבד.</>
+              ) : narrator >= 0 ? (
+                <>המקריא <span style={{ color: T.lamp }}>לא מקליט מילים</span> ולא מופיע בסיפור. אחרי שכולם מסיימים הוא מקליט את כל קטעי הסיפור בסדר אקראי, ובהשמעה שומעים אותו מספר.</>
+              ) : (
+                <>אף אחד לא מקריא: הטקסט עובר על המסך בשקט, ורק ההקלטות שלכם נשמעות.</>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5">
+              {ttsOk && (
+                <button
+                  onClick={() => pickReader("robot")}
+                  className="vg-press rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1"
+                  style={{
+                    background: robotOn ? T.lamp : T.raised,
+                    color: robotOn ? T.onLamp : T.muted,
+                    border: "1px solid " + (robotOn ? T.lamp : T.line),
+                  }}
+                >
+                  <Volume2 size={12} /> הטלפון מקריא
+                </button>
+              )}
               <button
-                onClick={() => onSetNarrator(-1)}
+                onClick={() => pickReader("live")}
+                className="vg-press rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1"
+                style={{
+                  background: liveOn ? T.lamp : T.raised,
+                  color: liveOn ? T.onLamp : T.muted,
+                  border: "1px solid " + (liveOn ? T.lamp : T.line),
+                }}
+              >
+                <BookOpen size={12} /> אני מקריא
+              </button>
+              <button
+                onClick={() => pickReader("none")}
                 className="vg-press rounded-full px-3 py-1.5 text-xs font-bold"
                 style={{
-                  background: narrator < 0 ? T.lamp : T.raised,
-                  color: narrator < 0 ? T.onLamp : T.muted,
-                  border: "1px solid " + (narrator < 0 ? T.lamp : T.line),
+                  background: silentOn ? T.lamp : T.raised,
+                  color: silentOn ? T.onLamp : T.muted,
+                  border: "1px solid " + (silentOn ? T.lamp : T.line),
                 }}
               >
                 אף אחד
@@ -607,7 +681,7 @@ export default function HomeScreen({
               {players.map((name, i) => (
                 <button
                   key={i}
-                  onClick={() => onSetNarrator(narrator === i ? -1 : i)}
+                  onClick={() => pickReader(narrator === i ? "none" : "person", i)}
                   className="vg-press rounded-full px-3 py-1.5 text-xs font-bold"
                   style={{
                     background: narrator === i ? T.lamp : T.raised,

@@ -1,7 +1,8 @@
 import React, { useRef, useState } from "react";
-import { Home, Download, Upload, Trash2, Share, Smartphone, CheckCircle2, Shuffle } from "lucide-react";
+import { Home, Download, Upload, Trash2, Share, Smartphone, CheckCircle2, Shuffle, Volume2, ListMusic, ChevronLeft } from "lucide-react";
 import { T } from "../theme.js";
 import { Toggle } from "../components/ui.jsx";
+import { speak, stopTTS } from "../lib/tts.js";
 
 function Section({ title, children }) {
   return (
@@ -30,8 +31,9 @@ function DangerButton({ label, armedLabel, onConfirm }) {
 
 export default function MoreScreen({
   settings, onSetSetting, onToggleBlind, onReshuffle, adultUnlocked, onLockAdult, canInstall, installed, ios, onInstall,
+  voices, heVoices, ttsSupported,
   onExport, onImport, exporting, importMsg,
-  onClearRecordings, onResetEndings, onResetScript, storageOk, onBack, recordedCount,
+  onClearRecordings, onManageRecordings, onResetEndings, onResetScript, storageOk, onBack, recordedCount,
 }) {
   const fileRef = useRef(null);
 
@@ -86,6 +88,65 @@ export default function MoreScreen({
             })}
           </div>
         </div>
+      </Section>
+
+      <Section title="הקראה אוטומטית">
+        {!ttsSupported ? (
+          <div className="py-3 text-sm leading-relaxed" style={{ color: T.dim }}>
+            הדפדפן הזה לא יודע להקריא. באנדרואיד ובאייפון זה עובד.
+          </div>
+        ) : !(heVoices || []).length ? (
+          <div className="py-3 text-sm leading-relaxed" style={{ color: T.dim }}>
+            לא נמצא קול עברי במכשיר הזה, אז ההקראה כבויה.
+            {" "}באנדרואיד: הגדרות → נגישות → פלט טקסט לדיבור → להוריד עברית. באייפון: הגדרות → נגישות → תוכן מדובר → קולות → עברית.
+          </div>
+        ) : (
+          <>
+            <Toggle
+              on={!!settings.tts}
+              onChange={(v) => { if (!v) stopTTS(); onSetSetting("tts", v); }}
+              label="הטלפון מקריא את הסיפור"
+              hint="בסיפור מהמילים שלכם: הטקסט נקרא בקול על ידי הטלפון. ההקלטות שלכם והשמות תמיד נשמעים בקול שלכם, אף פעם לא בקול של הטלפון."
+            />
+            <div className="py-3">
+              <div className="text-sm" style={{ color: T.ink }}>הקול</div>
+              <select
+                value={settings.ttsVoice || ""}
+                onChange={(e) => onSetSetting("ttsVoice", e.target.value)}
+                className="mt-2 w-full rounded-xl px-3 py-2 text-sm outline-none"
+                style={{ background: T.bg, color: T.ink, border: "1px solid " + T.line }}
+              >
+                <option value="">הקול העברי של המכשיר</option>
+                {(heVoices || []).map((v) => (
+                  <option key={v.voiceURI} value={v.voiceURI}>{v.name}{v.localService ? "" : " (דורש אינטרנט)"}</option>
+                ))}
+              </select>
+              <div className="mt-3 text-sm" style={{ color: T.ink }}>מהירות הדיבור</div>
+              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                {[["0.9", "רגוע"], ["1", "רגיל"], ["1.2", "מהיר"]].map(([v, label]) => {
+                  const on = String(settings.ttsRate || 1) === v;
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => onSetSetting("ttsRate", Number(v))}
+                      className="vg-press rounded-full px-3.5 py-1.5 text-xs font-bold"
+                      style={{ background: on ? T.lamp : T.raised, color: on ? T.onLamp : T.muted, border: "1px solid " + (on ? T.lamp : T.line) }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => speak("היחיד שקם לפתוח את הדלת בשלוש לפנות בוקר", { voiceURI: settings.ttsVoice, rate: settings.ttsRate || 1 })}
+                  className="vg-press rounded-full px-3.5 py-1.5 text-xs font-bold flex items-center gap-1"
+                  style={{ background: T.raised, color: T.lamp, border: "1px solid " + T.line }}
+                >
+                  <Volume2 size={13} /> לשמוע
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </Section>
 
       <Section title="שחקנים">
@@ -196,6 +257,19 @@ export default function MoreScreen({
           הקובץ מכיל את כל ההקלטות, התסריט והסופים שגילית. ככה עוברים בין טלפון למחשב, או שומרים עותק לפני שמשנים תסריט.
           {!storageOk && " כרגע אין אחסון קבוע בדפדפן, אז גיבוי הוא הדרך היחידה לשמור."}
         </div>
+      </Section>
+
+      <Section title="הקלטות">
+        <button onClick={onManageRecordings} className="w-full py-3 flex items-center gap-2 text-right">
+          <ListMusic size={16} style={{ color: T.lamp }} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm" style={{ color: T.ink }}>לנהל ולמחוק הקלטות</div>
+            <div className="text-xs mt-0.5" style={{ color: T.dim }}>
+              {recordedCount ? recordedCount + " הקלטות שמורות. אפשר למחוק רק של אדם מסוים או של סיפור מסוים." : "אין עדיין הקלטות."}
+            </div>
+          </div>
+          <ChevronLeft size={18} style={{ color: T.dim }} />
+        </button>
       </Section>
 
       <Section title="איפוס">

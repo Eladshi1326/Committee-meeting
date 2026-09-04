@@ -3,6 +3,7 @@ import { X, Volume2, RotateCcw, Home, Flag } from "lucide-react";
 import { T } from "../theme.js";
 import { getChar, textDurationMs, sanityColor, sanityVerdict, choiceAvailable, applyChoiceFlags, endingIds, lineAvailable, playerFlags } from "../lib/script.js";
 import { playRec } from "../lib/audio.js";
+import { speak, stopTTS, ttsSupported } from "../lib/tts.js";
 import { Avatar, SceneLabel } from "../components/ui.jsx";
 
 function EndingCard({ ending, sanity, steps, foundCount, totalEndings, isNew, onReplay, onExit }) {
@@ -88,6 +89,7 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
   function pauseAudio() {
     const a = audioRef.current;
     if (a) { try { a.pause(); } catch (e) { /* ignore */ } }
+    stopTTS();
   }
 
   function goNext(choice) {
@@ -137,6 +139,8 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
     };
     const rec = recFor(utter.id);
     const a = audioRef.current;
+    // שורה שאף אחד לא הקליט: אם ההקראה האוטומטית דלוקה, הטלפון קורא אותה
+    const robot = !!settings.tts && !settings.muted && ttsSupported();
     if (rec && a) {
       stop = playRec(
         a, rec,
@@ -144,6 +148,12 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
         () => { if (!cancelled) setNeedTap(true); },
         () => { timer = setTimeout(finish, 900); }
       );
+    } else if (robot) {
+      stop = speak(utter.text, {
+        voiceURI: settings.ttsVoice, rate: settings.ttsRate || 1,
+        onEnd: finish,
+        onFail: () => { timer = setTimeout(finish, textDurationMs(utter.text)); },
+      });
     } else if (!settings.autoAdvance && phase === "line") {
       setWaiting(true);
     } else {
@@ -155,12 +165,13 @@ export default function PlayScreen({ script, chars, recordings, settings, ending
       if (stop) stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodeId, lineIdx, phase]);
+  }, [nodeId, lineIdx, phase, settings.tts, settings.ttsVoice, settings.ttsRate]);
 
   useEffect(() => {
     return () => {
       const a = audioRef.current;
       if (a) { try { a.pause(); } catch (e) { /* ignore */ } a.onended = null; a.onerror = null; }
+      stopTTS();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
